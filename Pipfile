@@ -10,6 +10,8 @@ autopep8 = "*"
 pandas = "*"
 psycopg2 = "*"
 sqlalchemy = "*"
+flask-api = "*"
+flask = "*"
 
 [requires]
 python_version = "3.8"

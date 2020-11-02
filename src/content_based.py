@@ -9,15 +9,17 @@ st_time = datetime.utcnow()
 print("============ Start at %s ============" %
       (st_time.strftime("%H:%M:%S")))
 
-given_user_id = 1  # 1012808
+given_user_id = 1012808
 
-track_df, trackWithGenres_df = Track.get_with_genres()
+track_df = Track.get()
+trackWithGenres_df = Track.get_with_genres(track_df)
 ratings_df = Track.get_meta(["user_id", "track_id", "rating"])
 
 
 print("============= SQL request & PreProcessing Duration : %s =============" %
       (datetime.utcnow()-st_time))
 
+# =========== STEP 1: learning user profile
 user_input = ratings_df[ratings_df["user_id"] == given_user_id]
 
 # Ressetting the index to avoid future issues
@@ -40,6 +42,8 @@ user_profile = user_genre_table.transpose().dot(user_input['rating'])
 
 # Now, we have the weights for every of the user's preferences.
 # TODO maybe later, use user interest (genre he explicitly like) (by maybe multiply by ?)
+
+# =========== STEP 2: Create recommendations according to this profile
 
 # Now let's get the genres of every movie in our original dataframe
 genre_table = trackWithGenres_df.set_index(trackWithGenres_df['track_id'])
