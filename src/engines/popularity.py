@@ -23,7 +23,7 @@ class Popularity(Engine):
         "track": (Track, "track_id", int)
     }
 
-    def load(self):
+    def train(self):
         """(Re)load popularity score of each media
         """
         for media in self.__media__:

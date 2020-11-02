@@ -13,10 +13,10 @@ class Engine(Thread, metaclass=ABCMeta):
     def run(self):
         st_time = datetime.utcnow()
         with self.app.app_context():
-            self.load()
+            self.train()
         self.logger.info("%s engine performed in %s" %
                          (self.__class__.__name__, datetime.utcnow()-st_time))
 
     @abstractmethod
-    def load(self):
+    def train(self):
         pass

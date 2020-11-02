@@ -8,6 +8,7 @@ app = FlaskAPI(__name__)
 app.config.from_object("settings")
 
 
+# Not much security because only the recofinement api service will be able to use this api
 def token_auth(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
