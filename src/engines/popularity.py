@@ -1,5 +1,5 @@
 from src.content import Application, Book, Game, Movie, Serie, Track
-from src.utils import DB
+from src.utils import db
 from .engine import Engine
 
 from flask import current_app
@@ -36,18 +36,18 @@ class Popularity(Engine):
             q_df = self._get_populars(df)
 
             # open a transaction
-            with DB.engine.begin() as connection:
+            with db as session:
                 # Reset popularity score (delete and re-add column for score)
-                connection.execute(
+                session.execute(
                     text('ALTER TABLE "%s" DROP COLUMN popularity_score' % media))
-                connection.execute(
+                session.execute(
                     text('ALTER TABLE "%s" ADD COLUMN popularity_score DOUBLE PRECISION' % media))
                 # Set new popularity score
                 for index, row in q_df.iterrows():
                     id = row[info[1]]
                     if info[2] == str:
                         id = "'%s'" % row[info[1]]
-                    connection.execute(
+                    session.execute(
                         text("UPDATE %s SET popularity_score = %s WHERE %s = %s" % (media, row["popularity_score"], info[1], id)))
             self.logger.debug("%s popularity reloading performed in %s (%s lines)" %
                               (media, datetime.utcnow()-st_time, q_df.shape[0]))

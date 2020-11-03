@@ -4,6 +4,6 @@ class Singleton(object):
 
     def __new__(cls, *args, **kwargs):
         if cls not in cls._instances:
-            class_._instances[class_] = super(
+            cls._instances[cls] = super(
                 Singleton, cls).__new__(cls, *args, **kwargs)
         return cls._instances[cls]

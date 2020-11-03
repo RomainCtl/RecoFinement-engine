@@ -1,4 +1,4 @@
-from src.utils import DB
+from src.utils import db
 import pandas as pd
 import numpy as np
 
@@ -45,7 +45,7 @@ class Movie:
             DataFrame: movie dataframe
         """
         movie_df = pd.read_sql_query(
-            'SELECT movie_id, rating, rating_count FROM "movie"', con=DB.engine)
+            'SELECT movie_id, rating, rating_count FROM "movie"', con=db.engine)
 
         # Reduce memory
         movie_df = cls.reduce_memory(movie_df)
@@ -60,7 +60,7 @@ class Movie:
             DataFrame: movie dataframe
         """
         track_df = pd.read_sql_query(
-            'SELECT movie_id, rating, rating_count FROM "movie"', con=DB.engine)
+            'SELECT movie_id, rating, rating_count FROM "movie"', con=db.engine)
 
         # Reduce memory
         track_df = cls.reduce_memory(track_df)
@@ -69,7 +69,7 @@ class Movie:
 
     @classmethod
     def get_movies(cls):
-        movie_df = pd.read_sql_query('SELECT * FROM "movie"', con=DB.engine)
+        movie_df = pd.read_sql_query('SELECT * FROM "movie"', con=db.engine)
 
         # Reduce memory
         movie_df = cls.reduce_memory(movie_df)

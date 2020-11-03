@@ -1,2 +1,2 @@
-from .db import DB
+from .db import db
 from .singleton import Singleton

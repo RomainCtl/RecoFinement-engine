@@ -1,4 +1,4 @@
-from src.utils import DB
+from src.utils import db
 import pandas as pd
 import numpy as np
 
@@ -43,7 +43,7 @@ class Game:
             DataFrame: game dataframe
         """
         game_df = pd.read_sql_query(
-            'SELECT game_id, rating, rating_count FROM "game"', con=DB.engine)
+            'SELECT game_id, rating, rating_count FROM "game"', con=db.engine)
 
         # Reduce memory
         game_df = cls.reduce_memory(game_df)
@@ -52,7 +52,7 @@ class Game:
 
     @classmethod
     def get_games(cls):
-        game_df = pd.read_sql_query('SELECT * FROM "game"', con=DB.engine)
+        game_df = pd.read_sql_query('SELECT * FROM "game"', con=db.engine)
 
         # Reduce memory
         game_df = cls.reduce_memory(game_df)

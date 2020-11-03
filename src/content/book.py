@@ -1,4 +1,4 @@
-from src.utils import DB
+from src.utils import db
 import pandas as pd
 import numpy as np
 
@@ -37,7 +37,7 @@ class Book:
             DataFrame: book dataframe
         """
         book_df = pd.read_sql_query(
-            'SELECT isbn, rating, rating_count FROM "book"', con=DB.engine)
+            'SELECT isbn, rating, rating_count FROM "book"', con=db.engine)
 
         # Reduce memory
         book_df = cls.reduce_memory(book_df)
@@ -46,7 +46,7 @@ class Book:
 
     @classmethod
     def get_books(cls):
-        book_df = pd.read_sql_query('SELECT * FROM "book"', con=DB.engine)
+        book_df = pd.read_sql_query('SELECT * FROM "book"', con=db.engine)
 
         # Reduce memory
         book_df = cls.reduce_memory(book_df)

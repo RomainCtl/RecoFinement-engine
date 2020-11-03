@@ -1,4 +1,4 @@
-from src.utils import DB
+from src.utils import db
 import pandas as pd
 import numpy as np
 
@@ -38,7 +38,7 @@ class Application:
             DataFrame: application dataframe
         """
         app_df = pd.read_sql_query(
-            'SELECT app_id, rating, reviews as rating_count FROM "application"', con=DB.engine)
+            'SELECT app_id, rating, reviews as rating_count FROM "application"', con=db.engine)
 
         # Reduce memory
         app_df = cls.reduce_memory(app_df)
@@ -48,7 +48,7 @@ class Application:
     @classmethod
     def get_applications(cls):
         app_df = pd.read_sql_query(
-            'SELECT * FROM "application"', con=DB.engine)
+            'SELECT * FROM "application"', con=db.engine)
 
         # Reduce memory
         app_df = cls.reduce_memory(app_df)

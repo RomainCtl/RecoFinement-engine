@@ -1,4 +1,4 @@
-from src.utils import DB
+from src.utils import db
 import pandas as pd
 import numpy as np
 
@@ -41,7 +41,7 @@ class Serie:
             DataFrame: serie dataframe
         """
         serie_df = pd.read_sql_query(
-            'SELECT serie_id, rating, rating_count FROM "serie"', con=DB.engine)
+            'SELECT serie_id, rating, rating_count FROM "serie"', con=db.engine)
 
         # Reduce memory
         serie_df = cls.reduce_memory(serie_df)
@@ -50,7 +50,7 @@ class Serie:
 
     @classmethod
     def get_series(cls):
-        serie_df = pd.read_sql_query('SELECT * FROM "serie"', con=DB.engine)
+        serie_df = pd.read_sql_query('SELECT * FROM "serie"', con=db.engine)
 
         # Reduce memory
         serie_df = cls.reduce_memory(serie_df)
