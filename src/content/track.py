@@ -1,12 +1,10 @@
-from src.utils import DB
+from src.utils import db, clean_data, create_soup
+
 import pandas as pd
+import numpy as np
 
 
 class Track:
-    # TRACK: track_id, title, year, artist_name, release, track_mmid, recording_mbid, rating, rating_count, spotify_id, covert_art_url, popularity_score
-    # META: user_id, track_id, rating, play_count, review_see_count, last_played_date
-    # TRACK_GENRE: track_id, genre_id
-    # GENRE: genre_id, name, count, content_type
     __meta_cols__ = ["user_id", "track_id", "rating",
                      "play_count", "review_see_count", "last_played_date"]
 
@@ -41,7 +39,7 @@ class Track:
         assert all([x in cls.__meta_cols__ for x in cols])
 
         df = pd.read_sql_query('SELECT %s FROM "meta_user_track"' % (
-            ', '.join(cols)), con=DB.engine)
+            ', '.join(cols)), con=db.engine)
 
         # Reduce memory usage for ratings
         if 'user_id' in cols:
@@ -65,7 +63,7 @@ class Track:
             DataFrame: track dataframe
         """
         track_df = pd.read_sql_query(
-            'SELECT track_id, rating, rating_count FROM "track"', con=DB.engine)
+            'SELECT track_id, rating, rating_count FROM "track"', con=db.engine)
 
         # Reduce memory
         track_df = cls.reduce_memory(track_df)
@@ -79,7 +77,7 @@ class Track:
         Returns:
             DataFrame: track dataframe
         """
-        track_df = pd.read_sql_query('SELECT * FROM "track"', con=DB.engine)
+        track_df = pd.read_sql_query('SELECT * FROM "track"', con=db.engine)
 
         # Reduce memory
         track_df = cls.reduce_memory(track_df)
@@ -87,52 +85,93 @@ class Track:
         return track_df
 
     @classmethod
-    def get(cls):
-        """Get track #ordered by popularity
+    def get_with_genres(cls):
+        """Get track
 
-        #(At the end, if we do not have any recommendation for a user, the algo will return the most popular track)
+        NOTE can add 't.rating' and 't.rating_count' column if we introduce popularity filter to content-based engine
+            example: this recommender would take the 30 most similar item, calculate the popularity score and then return the top 10
 
         Returns:
-            DataFrame: dataframe of track data ordered by popularity
+            DataFrame: dataframe of track data
         """
-        #  ORDER BY rating_count DESC, rating DESC
         track_df = pd.read_sql_query(
-            'SELECT track.track_id, title, string_agg(g.name, \',\') AS genres FROM "track" LEFT OUTER JOIN "track_genres" AS tg ON tg.track_id = track.track_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = tg.genre_id GROUP BY track.track_id', con=DB.engine)
+            'SELECT t.track_id, t.title, t.year, t.artist_name, t.release, string_agg(g.name, \',\') AS genres FROM "track" AS t LEFT OUTER JOIN "track_genres" AS tg ON tg.track_id = t.track_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = tg.genre_id GROUP BY t.track_id', con=db.engine)
 
         # Reduce memory
         track_df = cls.reduce_memory(track_df)
 
         return track_df
 
-    @staticmethod
-    def get_with_genres(track_df):
-        """Get track with genre
+    # @staticmethod
+    # def get_with_genres(track_df):
+    #     """Get track with genre
 
-        NOTE this pre-processing ('with genre') take somes times, maybe we should directly store all genre as track table column (like output). Or maybe note to keep a dynamic genre list.
+    #     NOTE this pre-processing ('with genre') take somes times, maybe we should directly store all genre as track table column (like output). Or maybe note to keep a dynamic genre list.
+
+    #     Args:
+    #         track_df (DataFrame): Track dataframe
+
+    #     Returns:
+    #         DataFrame: track with genre weight (0 or 1)
+    #     """
+
+    #     # Copying the track dataframe into a new one since we won't need to use the genre information in our first case.
+    #     trackWithGenres_df = track_df.copy()
+
+    #     # For every row in the dataframe, iterate through the list of genres and place a 1 into the corresponding column
+    #     for index, row in track_df.iterrows():
+    #         if row['genres'] is not None:
+    #             for genre in row['genres'].split(","):
+    #                 trackWithGenres_df.at[index, genre] = 1
+
+    #     # Filling in the NaN values with 0 to show that a track doesn't have that column's genre
+    #     trackWithGenres_df = trackWithGenres_df.fillna(0)
+
+    #     # Reduce memory
+    #     genre_cols = list(set(trackWithGenres_df.columns) -
+    #                       set(track_df.columns))
+    #     for c in genre_cols:
+    #         trackWithGenres_df[c] = trackWithGenres_df[c].astype("uint8")
+
+    #     return trackWithGenres_df
+
+    @staticmethod
+    def prepare_sim(track_df):
+        """Prepare track data for content similarity process
 
         Args:
             track_df (DataFrame): Track dataframe
 
         Returns:
-            DataFrame: track with genre weight (0 or 1)
+            DataFrame: result dataframe
         """
+        # Transform genres str to list
+        track_df["genres"] = track_df["genres"].apply(
+            lambda x: str(x).split(","))
 
-        # Copying the track dataframe into a new one since we won't need to use the genre information in our first case.
-        trackWithGenres_df = track_df.copy()
+        # Remove '0' from year
+        track_df["year"] = track_df["year"].astype(str)
+        track_df["year"] = track_df["year"].replace('0', '')
 
-        # For every row in the dataframe, iterate through the list of genres and place a 1 into the corresponding column
-        for index, row in track_df.iterrows():
-            if row['genres'] is not None:
-                for genre in row['genres'].split(","):
-                    trackWithGenres_df.at[index, genre] = 1
+        # Replace NaN with an empty string
+        features = ['title', 'artist_name', 'release', 'genres']
+        for feature in features:
+            track_df[feature] = track_df[feature].fillna('')
 
-        # Filling in the NaN values with 0 to show that a track doesn't have that column's genre
-        trackWithGenres_df = trackWithGenres_df.fillna(0)
+        # Clean and homogenise data
+        features = ['title', 'year', 'artist_name', 'release', 'genres']
+        for feature in features:
+            track_df[feature] = track_df[feature].apply(clean_data)
 
-        # Reduce memory
-        genre_cols = list(set(trackWithGenres_df.columns) -
-                          set(track_df.columns))
-        for c in genre_cols:
-            trackWithGenres_df[c] = trackWithGenres_df[c].astype("uint8")
+        # Transform all list to simple str with space sep
+        track_df["genres"] = track_df["genres"].apply(' '.join)
+        track_df["genres"] = track_df["genres"].replace('none', '')
 
-        return trackWithGenres_df
+        # Create a new soup feature
+        track_df['soup'] = track_df.apply(
+            lambda x: create_soup(x, features), axis=1)
+
+        # Delete unused cols (feature)
+        track_df = track_df.drop(features, 1)
+
+        return track_df

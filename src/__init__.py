@@ -22,6 +22,15 @@ def token_auth(f):
 @token_auth
 def popularity_train():
     from src.engines import Popularity
-    p = Popularity()
-    p.start()
+    eng = Popularity()
+    eng.start()
+    return {"started": True}, 202
+
+
+@app.route("/content_similarities/train", methods=["POST"])
+@token_auth
+def content_similarities_train():
+    from src.engines import ContentSimilarities
+    eng = ContentSimilarities()
+    eng.start()
     return {"started": True}, 202

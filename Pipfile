@@ -12,6 +12,7 @@ psycopg2 = "*"
 sqlalchemy = "*"
 flask-api = "*"
 flask = "*"
+sklearn = "*"
 
 [requires]
 python_version = "3.8"
