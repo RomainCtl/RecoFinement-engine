@@ -1,4 +1,7 @@
 from pyspark import SparkConf, SparkContext
+from scipy.sparse import csr_matrix
+from sklearn.metrics.pairwise import cosine_similarity
+
 from .singleton import Singleton
 
 
@@ -29,14 +32,14 @@ def parallelize_matrix(scipy_mat, rows_per_chunk=100):
     return sc.parallelize(submatrices)
 
 
-def find_matches_in_submatrix(sources, targets, inputs_start_index, indices, threshold=.5, max_sim=10):
+def find_matches_in_submatrix(sources, targets, inputs_start_index, indices, real_indice_type, real_indice_name, threshold=.5, max_sim=10):
     cosimilarities = cosine_similarity(sources, targets)
     for i, cosimilarity in enumerate(cosimilarities):
         cosimilarity = cosimilarity.flatten()
 
         # Find real id
         source_index = indices[indices == inputs_start_index + i].index[0]
-        if info[2] == int:
+        if real_indice_type == int:
             source_index = int(source_index)
 
         # Sort by best match using argsort(), and take 10 first
@@ -47,9 +50,9 @@ def find_matches_in_submatrix(sources, targets, inputs_start_index, indices, thr
             # Find real id
             target_index = indices[indices == target_index].index[0]
             if similarity >= threshold and target_index != source_index:
-                if info[2] == int:
+                if real_indice_type == int:
                     target_index = int(target_index)
-                yield {"%s0" % info[1]: source_index, "%s1" % info[1]: target_index, "similarity": float(similarity)}
+                yield {"%s0" % real_indice_name: source_index, "%s1" % real_indice_name: target_index, "similarity": float(similarity)}
 
 
 sc = Spark()

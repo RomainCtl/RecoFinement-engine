@@ -5,7 +5,6 @@ from .engine import Engine
 from scipy.sparse import csr_matrix
 
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 from flask import current_app
 from sqlalchemy import text
 from datetime import datetime
@@ -63,8 +62,14 @@ class ContentSimilarities(Engine):
                 tfidf_matrix, rows_per_chunk=info[4])
             tfidf_mat_dist = broadcast_matrix(tfidf_matrix)
 
-            values = tfidf_mat_para.flatMap(
-                lambda submatrix: find_matches_in_submatrix(csr_matrix(submatrix[1], shape=submatrix[2]), tfidf_mat_dist, submatrix[0], indices)).collect()
+            values = tfidf_mat_para.flatMap(lambda submatrix: find_matches_in_submatrix(
+                sources=csr_matrix(submatrix[1], shape=submatrix[2]),
+                targets=tfidf_mat_dist,
+                inputs_start_index=submatrix[0],
+                indices=indices,
+                real_indice_type=info[2],
+                real_indice_name=info[1])
+            ).collect()
 
             self.logger.debug("%s cosine sim performed in %s" %
                               (media, datetime.utcnow()-st_time))
