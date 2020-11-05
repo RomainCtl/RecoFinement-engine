@@ -115,12 +115,13 @@ class Movie:
             movie_df[feature] = movie_df[feature].fillna('')
 
         # Transform multiple str to list
+        # NOTE only take the first 5 feature (due to performence issue, lack of material resource)
         movie_df["genres"] = movie_df["genres"].apply(
             lambda x: str(x).split(","))
         movie_df["actors"] = movie_df["actors"].apply(
-            lambda x: str(x).split("|"))
+            lambda x: str(x).split("|")[:5])
         movie_df["producers"] = movie_df["producers"].apply(
-            lambda x: str(x).split("|"))
+            lambda x: str(x).split("|")[:5])
 
         # Clean and homogenise data
         for feature in features:

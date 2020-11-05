@@ -97,14 +97,15 @@ class Serie:
             serie_df[feature] = serie_df[feature].fillna('')
 
         # Transform multiple str to list
+        # NOTE only take the first 5 feature (due to performence issue, lack of material resource)
         serie_df["genres"] = serie_df["genres"].apply(
             lambda x: str(x).split(","))
         serie_df["writers"] = serie_df["writers"].apply(
-            lambda x: str(x).split(","))
+            lambda x: str(x).split(",")[:5])
         serie_df["directors"] = serie_df["directors"].apply(
-            lambda x: str(x).split(","))
+            lambda x: str(x).split(",")[:5])
         serie_df["actors"] = serie_df["actors"].apply(
-            lambda x: str(x).split(","))
+            lambda x: str(x).split(",")[:5])
 
         # Clean and homogenise data
         for feature in features:
