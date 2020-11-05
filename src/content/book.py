@@ -104,6 +104,7 @@ class Book:
             lambda x: create_soup(x, features), axis=1)
 
         # Delete unused cols (feature)
-        book_df = book_df.drop(features, 1)
+        book_df = book_df.drop(
+            ['title', 'author', 'year_of_publication', 'publisher'], 1)
 
         return book_df
