@@ -1,6 +1,6 @@
 import os
 
-PORT = os.environ.get("PORT", 5001)
+PORT = os.environ.get("SERVICE_PORT", 4041)
 DEBUG = os.environ.get("FLASK_DEBUG", True)
 SECRET_KEY = os.environ.get("FLASK_SECRET", "1234567890")
 API_TOKEN = os.environ.get("API_TOKEN", "FOOBAR1")
