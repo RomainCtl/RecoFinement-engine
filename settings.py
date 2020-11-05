@@ -4,11 +4,14 @@ PORT = os.environ.get("SERVICE_PORT", 4041)
 DEBUG = os.environ.get("FLASK_DEBUG", True)
 SECRET_KEY = os.environ.get("FLASK_SECRET", "1234567890")
 API_TOKEN = os.environ.get("API_TOKEN", "FOOBAR1")
-REDIS_URL = os.environ.get("REDIS_URL", "redis://%s:%s" %
-                           (os.environ.get("REDIS_HOST", "localhost"), os.environ.get("REDIS_PORT", "6379")))
 
-DB_URI = "postgresql://%s:%s@%s:%s/%s" % (os.environ["DB_USER_LOGIN"], os.environ["DB_USER_PASSWORD"],
-                                          os.environ["DB_HOST"], os.environ["DB_PORT"], os.environ["DB_NAME"])
+DB_URI = "postgresql://%s:%s@%s:%s/%s" % (
+    os.environ.get("DB_USER_LOGIN", "reco_usr"),
+    os.environ.get("DB_USER_PASSWORD", "reco_pwd"),
+    os.environ.get("DB_HOST", "localhost"),
+    os.environ.get("DB_PORT", "5432"),
+    os.environ.get("DB_NAME", "recofinement")
+)
 
 DEFAULT_RENDERERS = [
     "flask_api.renderers.JSONRenderer"
