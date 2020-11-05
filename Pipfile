@@ -13,6 +13,7 @@ sqlalchemy = "*"
 flask-api = "*"
 flask = "*"
 sklearn = "*"
+pyspark = "*"
 
 [requires]
 python_version = "3.8"

@@ -1,9 +1,11 @@
 from src.content import Application, Book, Game, Movie, Serie, Track
-from src.utils import db
+from src.utils import db, sc, parallelize_matrix, broadcast_matrix, find_matches_in_submatrix
 from .engine import Engine
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import linear_kernel
+from scipy.sparse import csr_matrix
+
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 from flask import current_app
 from sqlalchemy import text
 from datetime import datetime
@@ -17,29 +19,32 @@ class ContentSimilarities(Engine):
     The main purpose it to recommend similar items based on a particular item
     """
     __media__ = {
-        "application": (Application, "app_id", int, "similars_application"),
-        "book": (Book, "isbn", str, "similars_book"),
-        "game": (Game, "game_id", int, "similars_game"),
-        "movie": (Movie, "movie_id", int, "similars_movie"),
-        "serie": (Serie, "serie_id", int, "similars_serie"),
-        "track": (Track, "track_id", int, "similars_track"),
+        "application": (Application, "app_id", int, "similars_application", 100),
+        "book": (Book, "isbn", str, "similars_book", 30),
+        "game": (Game, "game_id", int, "similars_game", 100),
+        "movie": (Movie, "movie_id", int, "similars_movie", 100),
+        "serie": (Serie, "serie_id", int, "similars_serie", 100),
+        "track": (Track, "track_id", int, "similars_track", 100),
     }
 
     def train(self):
         """(Re)load similarity score between item
         """
         for media in self.__media__:
-            if media != "book":
-                continue
             st_time = datetime.utcnow()
 
             info = self.__media__[media]
 
-            df = info[0].prepare_sim(info[0].get_with_genres())
-            # exit()
+            df = info[0].prepare_sim(info[0].get_with_genres())[:100_000]
+            # FIXME limitation of dataframe (Let's go to bigdata...), we juste need a cluster (currently, we use spark standalone)
 
-            # Define a TF-IDF Vectorizer Object. Remove all english stop words such as 'the', 'a'
-            tfidf = TfidfVectorizer(stop_words='english')
+            # Pre-calculate voc
+            vect = CountVectorizer(stop_words="english")
+            # This can be done with less memory overhead by using generator
+            vocabulary = vect.fit(df["soup"]).vocabulary_
+
+            tfidf = TfidfVectorizer(
+                stop_words="english", vocabulary=vocabulary, dtype=np.float32)
 
             self.logger.debug("%s data preparation performed in %s" %
                               (media, datetime.utcnow()-st_time))
@@ -50,30 +55,19 @@ class ContentSimilarities(Engine):
             self.logger.debug("%s TF-IDF transformation performed in %s" %
                               (media, datetime.utcnow()-st_time))
 
-            # Compute the cosine similarity matrix
-            cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
+            # Reset index of your main DataFrame and construct reverse mapping as before
+            df = df.reset_index()
+            indices = pd.Series(df.index, index=df[info[1]])
+
+            tfidf_mat_para = parallelize_matrix(
+                tfidf_matrix, rows_per_chunk=info[4])
+            tfidf_mat_dist = broadcast_matrix(tfidf_matrix)
+
+            values = tfidf_mat_para.flatMap(
+                lambda submatrix: find_matches_in_submatrix(csr_matrix(submatrix[1], shape=submatrix[2]), tfidf_mat_dist, submatrix[0], indices)).collect()
 
             self.logger.debug("%s cosine sim performed in %s" %
                               (media, datetime.utcnow()-st_time))
-
-            # Reset index of your main DataFrame and construct reverse mapping as before
-            df = df.reset_index()
-            self.indices = pd.Series(df.index, index=df[info[1]])
-
-            self.logger.debug("%s Matrix sim performed in %s" %
-                              (media, datetime.utcnow()-st_time))
-
-            values = []
-            # Store top 10 similars item per item
-            # NOTE this part is very time-consuming
-            for index, row in df.iterrows():
-                sim_i = self.get_recommendations(index, cosine_sim)
-                # Find real id
-                values += [
-                    {"%s0" % info[1]: int(self.indices[self.indices == index].index[0]),
-                     "%s1" % info[1]: int(self.indices[self.indices == sim[0]].index[0]), "similarity": sim[1]}
-                    for sim in sim_i
-                ]
 
             with db as session:
                 # Reset popularity score (delete and re-add column for score)
@@ -85,8 +79,8 @@ class ContentSimilarities(Engine):
                 ins = ins.format(tablename=info[3], markers=markers)
                 session.execute(ins, values)
 
-            self.logger.debug("%s similarity reloading performed in %s (%s lines)" %
-                              (media, datetime.utcnow()-st_time, len(values)))
+            self.logger.info("%s similarity reloading performed in %s (%s lines)" %
+                             (media, datetime.utcnow()-st_time, len(values)))
 
     def get_recommendations(self, item_id, cosine_sim):
         """Function that takes item id as input and outputs most similar items
