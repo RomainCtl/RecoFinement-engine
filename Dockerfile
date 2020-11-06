@@ -1,5 +1,31 @@
-# pull official base image
-FROM python:3.8.1-slim-buster
+# ------------------------------
+# Build stage
+# ------------------------------
+FROM ubuntu:groovy as build-stage
+
+# runtime dependencies
+RUN apt update && apt install -y --no-install-recommends \
+    apt-transport-https \
+    ca-certificates \
+    netcat \
+    software-properties-common \
+    gnupg gnupg-agent \
+    && rm -rf /var/lib/apt/lists/*
+
+# install java
+RUN apt update && apt install -y --no-install-recommends \
+    openjdk-11-jre \
+    && rm -rf /var/lib/apt/lists/*
+
+# python 3.8.6 is intalled by default on ubuntu 20.04, just upgrade
+RUN apt -y upgrade \
+    && add-apt-repository -y universe \
+    && apt install -y --no-install-recommends python3-pip
+
+# ------------------------------
+# Prod stage
+# ------------------------------
+FROM build-stage as prod-stage
 
 # create the appropriate directories
 ENV APP_HOME=/usr/src/app
@@ -10,10 +36,8 @@ WORKDIR $APP_HOME
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-RUN apt-get update && apt-get install -y netcat
-
 # install dependencies
-RUN pip install --upgrade pip pipenv
+RUN python3 -m pip install --upgrade pip pipenv
 COPY ./Pipfile $APP_HOME/Pipfile
 RUN sed -i 's/psycopg2/psycopg2-binary/g' ./Pipfile
 RUN pipenv install

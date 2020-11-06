@@ -18,7 +18,7 @@ def token_auth(f):
     return decorated_function
 
 
-@app.route("/popularity/train", methods=["POST"])
+@app.route("/popularity/train", methods=["PUT"])
 @token_auth
 def popularity_train():
     from src.engines import Popularity
@@ -27,10 +27,16 @@ def popularity_train():
     return {"started": True}, 202
 
 
-@app.route("/content_similarities/train", methods=["POST"])
+@app.route("/content_similarities/train", methods=["PUT"])
 @token_auth
 def content_similarities_train():
     from src.engines import ContentSimilarities
     eng = ContentSimilarities()
     eng.start()
+    return {"started": True}, 202
+
+@app.route("/recommend/<uuid:user_uuid>", methods=["PUT"])
+@token_auth
+def recommend_user(user_uuid):
+    # TODO
     return {"started": True}, 202
