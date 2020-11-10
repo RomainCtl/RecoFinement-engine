@@ -18,6 +18,11 @@ def token_auth(f):
     return decorated_function
 
 
+@app.route("/up")
+def up():
+    return {"up": True}, 200
+
+
 @app.route("/popularity/train", methods=["PUT"])
 @token_auth
 def popularity_train():
@@ -34,6 +39,7 @@ def content_similarities_train():
     eng = ContentSimilarities()
     eng.start()
     return {"started": True}, 202
+
 
 @app.route("/recommend/<uuid:user_uuid>", methods=["PUT"])
 @token_auth
