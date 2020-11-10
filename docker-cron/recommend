@@ -1,0 +1,3 @@
+# [minute (0-59)] [hour (0-23)] [day of month (1-31)] [month (1-12 or jan,feb,mar,...)] [day of week (0-6 Sunday=0 OR sun,mon,tue,...)]
+# Request is sent each 6 hours
+* */6 * * * echo "Send request to reload recommendations:" && curl -s -w "\t%{http_code}\n" -X PUT -H "X-API-TOKEN: $API_TOKEN" http://engine:4041/recommend/ > /proc/1/fd/1 2>/proc/1/fd/2
