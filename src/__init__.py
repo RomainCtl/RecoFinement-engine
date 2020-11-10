@@ -41,8 +41,15 @@ def content_similarities_train():
     return {"started": True}, 202
 
 
+@app.route("/recommend/", methods=["PUT"])
+@token_auth
+def recommend():
+    # TODO start all process of recommendation
+    return {"started": True}, 202
+
+
 @app.route("/recommend/<uuid:user_uuid>", methods=["PUT"])
 @token_auth
 def recommend_user(user_uuid):
-    # TODO
+    # TODO start process to recommend one user
     return {"started": True}, 202
