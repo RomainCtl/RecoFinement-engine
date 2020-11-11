@@ -58,7 +58,7 @@ class User:
         return genre_df
 
     @classmethod
-    def get_with_genres(cls, types=[], liked_weight=2):
+    def get_with_genres(cls, types=[], liked_weight=2, user_uuid=None):
         """Get users with liked genre
 
         Args:
@@ -80,8 +80,15 @@ class User:
             _types = list(map(lambda x: "'%s'" % x, types))
             filt = 'AND g.content_type IN (%s)' % (', '.join(_types))
 
+        usr = ''
+        if user_uuid is not None:
+            usr = "AND u.uuid = '%s'" % user_uuid
+
         user_df = pd.read_sql_query(
-            'SELECT u.user_id, g.content_type || g.name AS genres FROM "user" AS u LEFT OUTER JOIN "liked_genres" AS lg ON u.user_id = lg.user_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = lg.genre_id %s WHERE password_hash <> \'no_pwd\'' % filt, con=db.engine)
+            'SELECT u.user_id, g.content_type || g.name AS genres FROM "user" AS u LEFT OUTER JOIN "liked_genres" AS lg ON u.user_id = lg.user_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = lg.genre_id %s WHERE password_hash <> \'no_pwd\' %s' % (filt, usr), con=db.engine)
+
+        if user_df.shape[0] == 0:
+            return None
 
         # Concat liked genre to list
         def list_of_genre(genre_type):
