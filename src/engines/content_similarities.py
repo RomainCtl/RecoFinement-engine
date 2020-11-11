@@ -5,7 +5,6 @@ from .engine import Engine
 from scipy.sparse import csr_matrix
 
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
-from flask import current_app
 from sqlalchemy import text
 from datetime import datetime
 import pandas as pd

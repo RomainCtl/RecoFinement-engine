@@ -28,7 +28,7 @@ class Track:
         return track_df
 
     @classmethod
-    def get_meta(cls, cols=None):
+    def get_meta(cls, cols=None, user_id=None):
         """Get user metatrack metadata
 
         Returns:
@@ -38,8 +38,12 @@ class Track:
             cols = cls.__meta_cols__
         assert all([x in cls.__meta_cols__ for x in cols])
 
-        df = pd.read_sql_query('SELECT %s FROM "meta_user_track"' % (
-            ', '.join(cols)), con=db.engine)
+        filt = ''
+        if user_id is not None:
+            filt = "WHERE user_id = '%s'" % user_id
+
+        df = pd.read_sql_query('SELECT %s FROM "meta_user_track" %s' % (
+            ', '.join(cols), filt), con=db.engine)
 
         # Reduce memory usage for ratings
         if 'user_id' in cols:
@@ -47,6 +51,7 @@ class Track:
         if 'track_id' in cols:
             df['track_id'] = df['track_id'].astype("uint16")
         if 'rating' in cols:
+            df['rating'] = df['rating'].fillna(0)
             df['rating'] = df['rating'].astype("uint8")
         if 'play_count' in cols:
             df['play_count'] = df['play_count'].astype("uint16")
@@ -71,13 +76,14 @@ class Track:
         return track_df
 
     @classmethod
-    def get_tracks(cls):
-        """Get all tracks and their metadata
+    def get_for_profile(cls):
+        """Get all tracks id
 
         Returns:
             DataFrame: track dataframe
         """
-        track_df = pd.read_sql_query('SELECT * FROM "track"', con=db.engine)
+        track_df = pd.read_sql_query(
+            'SELECT t.track_id, string_agg(g.content_type || g.name, \',\') AS genres FROM "track" AS t LEFT OUTER JOIN "track_genres" AS tg ON tg.track_id = t.track_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = tg.genre_id GROUP BY t.track_id', con=db.engine)
 
         # Reduce memory
         track_df = cls.reduce_memory(track_df)
@@ -102,38 +108,38 @@ class Track:
 
         return track_df
 
-    # @staticmethod
-    # def get_with_genres(track_df):
-    #     """Get track with genre
+    @staticmethod
+    def prepare_from_user_profile(track_df):
+        """Get track with genre
 
-    #     NOTE this pre-processing ('with genre') take somes times, maybe we should directly store all genre as track table column (like output). Or maybe note to keep a dynamic genre list.
+        Args:
+            track_df (DataFrame): Track dataframe
 
-    #     Args:
-    #         track_df (DataFrame): Track dataframe
+        Returns:
+            DataFrame: track with genre weight (0 or 1)
+        """
 
-    #     Returns:
-    #         DataFrame: track with genre weight (0 or 1)
-    #     """
+        # Copying the track dataframe into a new one since we won't need to use the genre information in our first case.
+        trackWithGenres_df = track_df.copy()
 
-    #     # Copying the track dataframe into a new one since we won't need to use the genre information in our first case.
-    #     trackWithGenres_df = track_df.copy()
+        # For every row in the dataframe, iterate through the list of genres and place a 1 into the corresponding column
+        for index, row in track_df.iterrows():
+            if row['genres'] is not None:
+                for genre in row['genres'].split(","):
+                    trackWithGenres_df.at[index, genre] = 1
 
-    #     # For every row in the dataframe, iterate through the list of genres and place a 1 into the corresponding column
-    #     for index, row in track_df.iterrows():
-    #         if row['genres'] is not None:
-    #             for genre in row['genres'].split(","):
-    #                 trackWithGenres_df.at[index, genre] = 1
+        # Filling in the NaN values with 0 to show that a track doesn't have that column's genre
+        trackWithGenres_df = trackWithGenres_df.fillna(0)
 
-    #     # Filling in the NaN values with 0 to show that a track doesn't have that column's genre
-    #     trackWithGenres_df = trackWithGenres_df.fillna(0)
+        # Reduce memory
+        genre_cols = list(set(trackWithGenres_df.columns) -
+                          set(track_df.columns))
+        for c in genre_cols:
+            trackWithGenres_df[c] = trackWithGenres_df[c].astype("uint8")
 
-    #     # Reduce memory
-    #     genre_cols = list(set(trackWithGenres_df.columns) -
-    #                       set(track_df.columns))
-    #     for c in genre_cols:
-    #         trackWithGenres_df[c] = trackWithGenres_df[c].astype("uint8")
+        trackWithGenres_df.drop(["genres"], axis=1, inplace=True)
 
-    #     return trackWithGenres_df
+        return trackWithGenres_df
 
     @staticmethod
     def prepare_sim(track_df):

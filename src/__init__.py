@@ -41,6 +41,15 @@ def content_similarities_train():
     return {"started": True}, 202
 
 
+@app.route("/from_user_profile/train", methods=["PUT"])
+@token_auth
+def from_user_profile_train():
+    from src.engines import FromUserProfile
+    eng = FromUserProfile()
+    eng.start()
+    return {"started": True}, 202
+
+
 @app.route("/recommend/", methods=["PUT"])
 @token_auth
 def recommend():
