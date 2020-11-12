@@ -35,13 +35,17 @@ class Application:
         return app_df
 
     @classmethod
-    def get_meta(cls, cols=None):
+    def get_meta(cls, cols=None, user_id=None):
         if cols is None:
             cols = cls.__meta_cols__
         assert all([x in cls.__meta_cols__ for x in cols])
 
-        df = pd.read_sql_query('SELECT %s FROM "meta_user_application"' % (
-            ', '.join(cols)), con=db.engine)
+        filt = ''
+        if user_id is not None:
+            filt = "WHERE user_id = '%s'" % user_id
+
+        df = pd.read_sql_query('SELECT %s FROM "meta_user_application" %s' % (
+            ', '.join(cols), filt), con=db.engine)
 
         # Reduce memory usage for ratings
         if 'user_id' in cols:
