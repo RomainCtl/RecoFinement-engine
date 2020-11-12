@@ -7,6 +7,13 @@ class Movie:
     __meta_cols__ = ["user_id", "movie_id",
                      "rating", "watch_count", "review_see_count"]
 
+    id = "movie_id"
+    id_type = int
+    tablename_recommended = "recommended_movie"
+    tablename_similars = "similars_movie"
+    tablename_media = "movie"
+    uppername = tablename_media.upper()
+
     @staticmethod
     def reduce_memory(movie_df):
         cols = list(movie_df.columns)

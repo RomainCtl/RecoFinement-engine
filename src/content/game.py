@@ -7,6 +7,13 @@ class Game:
     __meta_cols__ = ["user_id", "game_id", "purchase",
                      "hours", "rating", "review_see_count"]
 
+    id = "game_id"
+    id_type = int
+    tablename_recommended = "recommended_game"
+    tablename_similars = "similars_game"
+    tablename_media = "game"
+    uppername = tablename_media.upper()
+
     @staticmethod
     def reduce_memory(game_df):
         cols = list(game_df.columns)

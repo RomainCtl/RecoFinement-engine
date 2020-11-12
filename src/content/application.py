@@ -8,6 +8,13 @@ class Application:
     __meta_cols__ = ["user_id", "app_id", "review", "popularity",
                      "subjectivity", "rating", "review_see_count", "downloaded"]
 
+    id = "app_id"
+    id_type = int
+    tablename_recommended = "recommended_application"
+    tablename_similars = "similars_application"
+    tablename_media = "application"
+    uppername = tablename_media.upper()
+
     @staticmethod
     def reduce_memory(app_df):
         cols = list(app_df.columns)

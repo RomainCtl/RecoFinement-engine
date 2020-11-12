@@ -7,6 +7,13 @@ class Book:
     __meta_cols__ = ["user_id", "isbn",
                      "rating", "purchase", "review_see_count"]
 
+    id = "isbn"
+    id_type = str
+    tablename_recommended = "recommended_book"
+    tablename_similars = "similars_book"
+    tablename_media = "book"
+    uppername = tablename_media.upper()
+
     @staticmethod
     def reduce_memory(book_df):
         cols = list(book_df.columns)

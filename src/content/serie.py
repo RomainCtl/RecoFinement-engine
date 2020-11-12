@@ -7,6 +7,13 @@ class Serie:
     __meta_cols__ = ["user_id", "serie_id", "rating",
                      "num_watched_episodes", "review_see_count"]
 
+    id = "serie_id"
+    id_type = int
+    tablename_recommended = "recommended_serie"
+    tablename_similars = "similars_serie"
+    tablename_media = "serie"
+    uppername = tablename_media.upper()
+
     @staticmethod
     def reduce_memory(serie_df):
         cols = list(serie_df.columns)

@@ -8,6 +8,13 @@ class Track:
     __meta_cols__ = ["user_id", "track_id", "rating",
                      "play_count", "review_see_count", "last_played_date"]
 
+    id = "track_id"
+    id_type = int
+    tablename_recommended = "recommended_track"
+    tablename_similars = "similars_track"
+    tablename_media = "track"
+    uppername = tablename_media.upper()
+
     @staticmethod
     def reduce_memory(track_df):
         cols = list(track_df.columns)
