@@ -8,18 +8,12 @@ from flask import current_app
 
 class Recommend(Engine):
     def train(self):
-        p = Popularity()
-        p.start()
-        p.join()
-        c = ContentSimilarities()
-        c.start()
-        c.join()
+        start_popularity_engine(wait=True)
+        start_similarities_engine(wait=True)
 
         # TODO Recommend content from similarities (from user top rating content)
         # TODO Recommend content from group profile
-        fup = FromUserProfile()
-        fup.start()
-        fup.join()
+        start_from_user_profile_engine(wait=True)
         # TODO Collaboratif filtering
 
 
@@ -35,7 +29,26 @@ class RecommendUser(Engine):
     def train(self):
         # TODO Recommend content from similarities (from user top rating content)
         # TODO Recommend content from group profile
-        fup = FromUserProfile(user_uuid=self.user_uuid)
-        fup.start()
-        fup.join()
+        start_from_user_profile_engine(wait=True)
         # TODO Collaboratif filtering
+
+
+def start_popularity_engine(wait=True):
+    p = Popularity()
+    p.start()
+    if wait:
+        p.join()
+
+
+def start_similarities_engine(wait=True):
+    c = ContentSimilarities()
+    c.start()
+    if wait:
+        c.join()
+
+
+def start_from_user_profile_engine(wait=True):
+    fup = FromUserProfile()
+    fup.start()
+    if wait:
+        fup.join()
