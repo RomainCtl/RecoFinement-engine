@@ -1,4 +1,3 @@
-from src.content import Application, Book, Game, Movie, Serie, Track
 from src.utils import db
 from .engine import Engine
 
@@ -14,14 +13,6 @@ class Popularity(Engine):
 
     The main purpose it to recommend the top items based on popularity score
     """
-    __media__ = {
-        "application": (Application, "app_id", int),
-        "book": (Book, "isbn", str),
-        "game": (Game, "game_id", int),
-        "movie": (Movie, "movie_id", int),
-        "serie": (Serie, "serie_id", int),
-        "track": (Track, "track_id", int)
-    }
 
     def train(self):
         """(Re)load popularity score of each media
@@ -29,9 +20,7 @@ class Popularity(Engine):
         for media in self.__media__:
             st_time = datetime.utcnow()
 
-            info = self.__media__[media]
-
-            df = info[0].get_ratings()
+            df = media.get_ratings()
 
             q_df = self._get_populars(df)
 
@@ -39,18 +28,18 @@ class Popularity(Engine):
             with db as session:
                 # Reset popularity score (delete and re-add column for score)
                 session.execute(
-                    text('ALTER TABLE "%s" DROP COLUMN popularity_score' % media))
+                    text('ALTER TABLE "%s" DROP COLUMN popularity_score' % media.tablename_media))
                 session.execute(
-                    text('ALTER TABLE "%s" ADD COLUMN popularity_score DOUBLE PRECISION' % media))
+                    text('ALTER TABLE "%s" ADD COLUMN popularity_score DOUBLE PRECISION' % media.tablename_media))
                 # Set new popularity score
                 for index, row in q_df.iterrows():
-                    id = row[info[1]]
-                    if info[2] == str:
-                        id = "'%s'" % row[info[1]]
+                    id = row[media.id]
+                    if media.id_type == str:
+                        id = "'%s'" % row[media.id]
                     session.execute(
-                        text("UPDATE %s SET popularity_score = %s WHERE %s = %s" % (media, row["popularity_score"], info[1], id)))
+                        text("UPDATE %s SET popularity_score = %s WHERE %s = %s" % (media.tablename_media, row["popularity_score"], media.id, id)))
             self.logger.debug("%s popularity reloading performed in %s (%s lines)" %
-                              (media, datetime.utcnow()-st_time, q_df.shape[0]))
+                              (media.uppername, datetime.utcnow()-st_time, q_df.shape[0]))
 
     def _weighted_rating(self, x, m, C):
         """Function that computes the weighted rating of each media

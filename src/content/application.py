@@ -145,14 +145,9 @@ class Application:
             DataFrame: result dataframe
         """
         # Replace NaN with an empty string
-        features = ['name', 'type', 'content_rating', 'genre']
+        features = ['name', 'type', 'content_rating', 'genres']
         for feature in features:
             app_df[feature] = app_df[feature].fillna('')
-
-        # Parse the stringified features into their corresponding python objects
-        # from ast import literal_eval
-        # for feature in features:
-        #     app_df[feature] = app_df[feature].apply(literal_eval)
 
         # Clean and homogenise data
         for feature in features:

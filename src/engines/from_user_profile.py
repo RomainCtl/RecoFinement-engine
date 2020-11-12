@@ -10,18 +10,11 @@ import uuid
 
 
 class FromUserProfile(Engine):
-    """(Re-)Set top 50 recommended media (per type) for each user
+    """(Re-)Set top recommended media (per type) for each user
 
     The main purpose it to recommend items based on the user profile (contruction of liked genre + explicit liked genres)
     """
-    __media__ = {
-        # "application": (Application, "app_id", int, "APPLICATION", "recommended_application"), # 1 seul genre par app ...
-        # "book": (Book, "isbn", str, "BOOK", "recommended_book"), # Pas de genre pour les livres
-        "game": (Game, "game_id", int, "GAME", "recommended_game"),
-        "movie": (Movie, "movie_id", int, "MOVIE", "recommended_movie"),
-        "serie": (Serie, "serie_id", int, "SERIE", "recommended_serie"),
-        "track": (Track, "track_id", int, "TRACK", "recommended_track"),
-    }
+    __engine_priority__ = 4
 
     def __init__(self, *args, user_uuid=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -34,38 +27,41 @@ class FromUserProfile(Engine):
 
     def train(self):
         for media in self.__media__:
+            if media.tablename_media in [
+                Application.tablename_media,  # 1 seul genre par app ...
+                Book.tablename_media  # Pas de genre pour les livres
+            ]:
+                continue
             st_time = datetime.utcnow()
-
-            info = self.__media__[media]
 
             # Get user
             self.user_df = User.get_with_genres(
-                info[3], user_uuid=self.user_uuid)
+                media.uppername, user_uuid=self.user_uuid)
 
             # Check we have a result for this user uuid
             if self.user_df is None:
                 continue
 
             # Get media (only rating for now)
-            self.media_df = info[0].get_for_profile()
-            self.mediaWithGenres_df = info[0].prepare_from_user_profile(
+            self.media_df = media.get_for_profile()
+            self.mediaWithGenres_df = media.prepare_from_user_profile(
                 self.media_df)
 
             self.logger.debug("%s data preparation performed in %s" %
-                              (media, datetime.utcnow()-st_time))
+                              (media.uppername, datetime.utcnow()-st_time))
 
             # Now let's get the genres of every movie in our original dataframe
             genre_table = self.mediaWithGenres_df.set_index(
-                self.mediaWithGenres_df[info[1]])
+                self.mediaWithGenres_df[media.id])
 
             len_values = 0
             # for each user
             for index, user in self.user_df.iterrows():
-                user_input = info[0].get_meta(
-                    [info[1], "rating"], user["user_id"])
+                user_input = media.get_meta(
+                    [media.id, "rating"], user["user_id"])
 
                 user_profile = self.learning_user_profile(
-                    user, info[1], user_input)
+                    user, media.id, user_input)
 
                 user_profile = user_profile.fillna(0)
 
@@ -94,9 +90,10 @@ class FromUserProfile(Engine):
                     values.append(
                         {
                             "user_id": int(user["user_id"]),
-                            info[1]: int(id) if info[2] == int else id,
+                            media.id: int(id) if media.id_type == int else id,
                             "score": float(score),
-                            "engine": "From user profile"
+                            "engine": self.__class__.__name__,
+                            "engine_priority": self.__engine_priority__,
                         }
                     )
 
@@ -105,15 +102,16 @@ class FromUserProfile(Engine):
                 with db as session:
                     # Reset list of recommended `media`
                     session.execute(
-                        text('DELETE FROM "%s" WHERE user_id = \'%s\'' % (info[4], user["user_id"])))
+                        text('DELETE FROM "%s" WHERE user_id = \'%s\'' % (media.tablename_recommended, user["user_id"])))
 
-                    markers = ':user_id, :%s, :score, :engine' % (info[1])
+                    markers = ':user_id, :%s, :score, :engine' % (media.id)
                     ins = 'INSERT INTO {tablename} VALUES ({markers})'
-                    ins = ins.format(tablename=info[4], markers=markers)
+                    ins = ins.format(
+                        tablename=media.tablename_recommended, markers=markers)
                     session.execute(ins, values)
 
             self.logger.info("%s recommendation from user profile performed in %s (%s lines)" % (
-                media, datetime.utcnow()-st_time, len_values))
+                media.uppername, datetime.utcnow()-st_time, len_values))
 
     def learning_user_profile(self, user, media_id, user_input):
         """Learning user profile from rating and interests
@@ -150,6 +148,8 @@ class FromUserProfile(Engine):
             user_interests, level=list(user_interests.keys()))
         user_profile = user_profile.apply(lambda x: 0.0 if x == 1 else x)
         user_profile = user_profile.astype("float32")
+
+        # NOTE take into account implicit user data ?
 
         # Now, we have the weights for every of the user's preferences.
         return user_profile
