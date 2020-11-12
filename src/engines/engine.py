@@ -1,3 +1,5 @@
+from src.content import Application, Book, Game, Movie, Serie, Track
+
 from threading import Thread
 from datetime import datetime
 from flask import current_app
@@ -5,6 +7,8 @@ from abc import ABCMeta, abstractmethod
 
 
 class Engine(Thread, metaclass=ABCMeta):
+    __media__ = [Application, Book, Game, Movie, Serie, Track]
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.app = current_app._get_current_object()

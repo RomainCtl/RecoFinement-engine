@@ -7,6 +7,13 @@ class Game:
     __meta_cols__ = ["user_id", "game_id", "purchase",
                      "hours", "rating", "review_see_count"]
 
+    id = "game_id"
+    id_type = int
+    tablename_recommended = "recommended_game"
+    tablename_similars = "similars_game"
+    tablename_media = "game"
+    uppername = tablename_media.upper()
+
     @staticmethod
     def reduce_memory(game_df):
         cols = list(game_df.columns)
@@ -32,8 +39,32 @@ class Game:
         return game_df
 
     @classmethod
-    def get_meta(cls, cols=None):
-        pass
+    def get_meta(cls, cols=None, user_id=None):
+        if cols is None:
+            cols = cls.__meta_cols__
+        assert all([x in cls.__meta_cols__ for x in cols])
+
+        filt = ''
+        if user_id is not None:
+            filt = "WHERE user_id = '%s'" % user_id
+
+        df = pd.read_sql_query('SELECT %s FROM "meta_user_game" %s' % (
+            ', '.join(cols), filt), con=db.engine)
+
+        # Reduce memory usage for ratings
+        if 'user_id' in cols:
+            df['user_id'] = df['user_id'].astype("uint32")
+        if 'game_id' in cols:
+            df['game_id'] = df['game_id'].astype("uint16")
+        if 'rating' in cols:
+            df['rating'] = df['rating'].fillna(0)
+            df['rating'] = df['rating'].astype("uint8")
+        if 'hours' in cols:
+            df['hours'] = df['hours'].astype("uint16")
+        if 'review_see_count' in cols:
+            df['review_see_count'] = df['review_see_count'].astype("uint16")
+
+        return df
 
     @classmethod
     def get_ratings(cls):
@@ -51,8 +82,9 @@ class Game:
         return game_df
 
     @classmethod
-    def get_games(cls):
-        game_df = pd.read_sql_query('SELECT * FROM "game"', con=db.engine)
+    def get_for_profile(cls):
+        game_df = pd.read_sql_query(
+            'SELECT ga.game_id, string_agg(g.content_type || g.name, \',\') AS genres FROM "game" AS ga LEFT OUTER JOIN "game_genres" AS tg ON tg.game_id = ga.game_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = tg.genre_id GROUP BY ga.game_id', con=db.engine)
 
         # Reduce memory
         game_df = cls.reduce_memory(game_df)
@@ -76,6 +108,39 @@ class Game:
         game_df = cls.reduce_memory(game_df)
 
         return game_df
+
+    @staticmethod
+    def prepare_from_user_profile(game_df):
+        """Get game with genre
+
+        Args:
+            game_df (DataFrame): Game dataframe
+
+        Returns:
+            DataFrame: game with genre weight (0 or 1)
+        """
+
+        # Copying the game dataframe into a new one since we won't need to use the genre information in our first case.
+        gameWithGenres_df = game_df.copy()
+
+        # For every row in the dataframe, iterate through the list of genres and place a 1 into the corresponding column
+        for index, row in game_df.iterrows():
+            if row['genres'] is not None:
+                for genre in row['genres'].split(","):
+                    gameWithGenres_df.at[index, genre] = 1
+
+        # Filling in the NaN values with 0 to show that a game doesn't have that column's genre
+        gameWithGenres_df = gameWithGenres_df.fillna(0)
+
+        # Reduce memory
+        genre_cols = list(set(gameWithGenres_df.columns) -
+                          set(game_df.columns))
+        for c in genre_cols:
+            gameWithGenres_df[c] = gameWithGenres_df[c].astype("uint8")
+
+        gameWithGenres_df.drop(["genres"], axis=1, inplace=True)
+
+        return gameWithGenres_df
 
     @staticmethod
     def prepare_sim(game_df):

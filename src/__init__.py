@@ -1,3 +1,5 @@
+from .recommend import Recommend, RecommendUser, start_popularity_engine, start_similarities_engine, start_from_user_profile_engine
+
 from flask import request, current_app, abort
 from flask_api import FlaskAPI
 from flask_api.exceptions import PermissionDenied
@@ -26,30 +28,39 @@ def up():
 @app.route("/popularity/train", methods=["PUT"])
 @token_auth
 def popularity_train():
-    from src.engines import Popularity
-    eng = Popularity()
-    eng.start()
+    start_popularity_engine(wait=False)
     return {"started": True}, 202
 
 
 @app.route("/content_similarities/train", methods=["PUT"])
 @token_auth
 def content_similarities_train():
-    from src.engines import ContentSimilarities
-    eng = ContentSimilarities()
-    eng.start()
+    start_similarities_engine(wait=False)
+    return {"started": True}, 202
+
+
+@app.route("/from_user_profile/train", methods=["PUT"])
+@token_auth
+def from_user_profile_train():
+    start_from_user_profile_engine(wait=False)
     return {"started": True}, 202
 
 
 @app.route("/recommend/", methods=["PUT"])
 @token_auth
 def recommend():
-    # TODO start all process of recommendation
+    eng = Recommend()
+    eng.start()
     return {"started": True}, 202
 
 
 @app.route("/recommend/<uuid:user_uuid>", methods=["PUT"])
 @token_auth
 def recommend_user(user_uuid):
-    # TODO start process to recommend one user
-    return {"started": True}, 202
+    try:
+        eng = RecommendUser()
+        eng.start()
+    except (ValueError, TypeError):
+        return {"started": False, "message": "Invalid uuid"}, 400
+    else:
+        return {"started": True}, 202

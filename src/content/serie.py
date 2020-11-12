@@ -7,6 +7,13 @@ class Serie:
     __meta_cols__ = ["user_id", "serie_id", "rating",
                      "num_watched_episodes", "review_see_count"]
 
+    id = "serie_id"
+    id_type = int
+    tablename_recommended = "recommended_serie"
+    tablename_similars = "similars_serie"
+    tablename_media = "serie"
+    uppername = tablename_media.upper()
+
     @staticmethod
     def reduce_memory(serie_df):
         cols = list(serie_df.columns)
@@ -32,8 +39,38 @@ class Serie:
         return serie_df
 
     @classmethod
-    def get_meta(cls, cols=None):
-        pass
+    def get_meta(cls, cols=None, user_id=None):
+        """Get user metaserie metadata
+
+        Returns:
+            DataFrame: pandas DataFrame
+        """
+        if cols is None:
+            cols = cls.__meta_cols__
+        assert all([x in cls.__meta_cols__ for x in cols])
+
+        filt = ''
+        if user_id is not None:
+            filt = "WHERE user_id = '%s'" % user_id
+
+        df = pd.read_sql_query('SELECT %s FROM "meta_user_serie" %s' % (
+            ', '.join(cols), filt), con=db.engine)
+
+        # Reduce memory usage for ratings
+        if 'user_id' in cols:
+            df['user_id'] = df['user_id'].astype("uint32")
+        if 'serie_id' in cols:
+            df['serie_id'] = df['serie_id'].astype("uint16")
+        if 'rating' in cols:
+            df['rating'] = df['rating'].fillna(0)
+            df['rating'] = df['rating'].astype("uint8")
+        if 'num_watched_episodes' in cols:
+            df['num_watched_episodes'] = df['num_watched_episodes'].astype(
+                "uint16")
+        if 'review_see_count' in cols:
+            df['review_see_count'] = df['review_see_count'].astype("uint16")
+
+        return df
 
     @classmethod
     def get_ratings(cls):
@@ -51,8 +88,9 @@ class Serie:
         return serie_df
 
     @classmethod
-    def get_series(cls):
-        serie_df = pd.read_sql_query('SELECT * FROM "serie"', con=db.engine)
+    def get_for_profile(cls):
+        serie_df = pd.read_sql_query(
+            'SELECT s.serie_id, string_agg(g.content_type || g.name, \',\') AS genres FROM "serie" AS s LEFT OUTER JOIN "serie_genres" AS tg ON tg.serie_id = s.serie_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = tg.genre_id GROUP BY s.serie_id', con=db.engine)
 
         # Reduce memory
         serie_df = cls.reduce_memory(serie_df)
@@ -76,6 +114,39 @@ class Serie:
         serie_df = cls.reduce_memory(serie_df)
 
         return serie_df
+
+    @staticmethod
+    def prepare_from_user_profile(serie_df):
+        """Get serie with genre
+
+        Args:
+            serie_df (DataFrame): serie dataframe
+
+        Returns:
+            DataFrame: serie with genre weight (0 or 1)
+        """
+
+        # Copying the serie dataframe into a new one since we won't need to use the genre information in our first case.
+        serieWithGenres_df = serie_df.copy()
+
+        # For every row in the dataframe, iterate through the list of genres and place a 1 into the corresponding column
+        for index, row in serie_df.iterrows():
+            if row['genres'] is not None:
+                for genre in row['genres'].split(","):
+                    serieWithGenres_df.at[index, genre] = 1
+
+        # Filling in the NaN values with 0 to show that a serie doesn't have that column's genre
+        serieWithGenres_df = serieWithGenres_df.fillna(0)
+
+        # Reduce memory
+        genre_cols = list(set(serieWithGenres_df.columns) -
+                          set(serie_df.columns))
+        for c in genre_cols:
+            serieWithGenres_df[c] = serieWithGenres_df[c].astype("uint8")
+
+        serieWithGenres_df.drop(["genres"], axis=1, inplace=True)
+
+        return serieWithGenres_df
 
     @staticmethod
     def prepare_sim(serie_df):
