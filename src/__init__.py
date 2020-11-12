@@ -53,12 +53,20 @@ def from_user_profile_train():
 @app.route("/recommend/", methods=["PUT"])
 @token_auth
 def recommend():
-    # TODO start all process of recommendation
+    from src.recommend import Recommend
+    eng = Recommend()
+    eng.start()
     return {"started": True}, 202
 
 
 @app.route("/recommend/<uuid:user_uuid>", methods=["PUT"])
 @token_auth
 def recommend_user(user_uuid):
-    # TODO start process to recommend one user
-    return {"started": True}, 202
+    from src.recommend import RecommendUser
+    try:
+        eng = RecommendUser()
+        eng.start()
+    except (ValueError, TypeError):
+        return {"started": False, "message": "Invalid uuid"}, 400
+    else:
+        return {"started": True}, 202
