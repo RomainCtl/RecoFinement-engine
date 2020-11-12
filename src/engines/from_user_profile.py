@@ -1,4 +1,4 @@
-from src.content import User, Application, Book, Game, Movie, Serie, Track
+from src.content import User, Application, Book
 from src.utils import db
 from .engine import Engine
 
@@ -90,7 +90,7 @@ class FromUserProfile(Engine):
                     values.append(
                         {
                             "user_id": int(user["user_id"]),
-                            media.id: int(id) if media.id_type == int else id,
+                            media.id: media.id_type(id),
                             "score": float(score),
                             "engine": self.__class__.__name__,
                             "engine_priority": self.__engine_priority__,
@@ -102,9 +102,10 @@ class FromUserProfile(Engine):
                 with db as session:
                     # Reset list of recommended `media`
                     session.execute(
-                        text('DELETE FROM "%s" WHERE user_id = \'%s\'' % (media.tablename_recommended, user["user_id"])))
+                        text('DELETE FROM "%s" WHERE user_id = \'%s\' AND engine = \'%s\'' % (media.tablename_recommended, user["user_id"], self.__class__.__name__)))
 
-                    markers = ':user_id, :%s, :score, :engine' % (media.id)
+                    markers = ':user_id, :%s, :score, :engine, :engine_priority' % (
+                        media.id)
                     ins = 'INSERT INTO {tablename} VALUES ({markers})'
                     ins = ins.format(
                         tablename=media.tablename_recommended, markers=markers)

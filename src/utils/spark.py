@@ -38,9 +38,8 @@ def find_matches_in_submatrix(sources, targets, inputs_start_index, indices, rea
         cosimilarity = cosimilarity.flatten()
 
         # Find real id
-        source_index = indices[indices == inputs_start_index + i].index[0]
-        if real_indice_type == int:
-            source_index = int(source_index)
+        source_index = real_indice_type(
+            indices[indices == inputs_start_index + i].index[0])
 
         # Sort by best match using argsort(), and take 10 first
         targets = cosimilarity.argsort()[-(max_sim+1):]
@@ -48,10 +47,9 @@ def find_matches_in_submatrix(sources, targets, inputs_start_index, indices, rea
         for target_index in targets:
             similarity = cosimilarity[target_index]
             # Find real id
-            target_index = indices[indices == target_index].index[0]
+            target_index = real_indice_type(
+                indices[indices == target_index].index[0])
             if similarity >= threshold and target_index != source_index:
-                if real_indice_type == int:
-                    target_index = int(target_index)
                 yield {"%s0" % real_indice_name: source_index, "%s1" % real_indice_name: target_index, "similarity": float(similarity)}
 
 
