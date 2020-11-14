@@ -1,4 +1,5 @@
 from src.utils import db
+from .genre import Genre
 
 import pandas as pd
 import numpy as np
@@ -16,7 +17,7 @@ class User:
         return user_df
 
     @classmethod
-    def get_users(cls, user_uuid=None):
+    def get(cls, user_uuid=None):
         """Get all users
 
         NOTE we recover only the real users, not those recovered via datasets.
@@ -36,38 +37,13 @@ class User:
         return user_df
 
     @classmethod
-    def get_genres(cls, types=[]):
-        """Get all gernes
-
-        Returns:
-            DataFrame: genre dataframe
-        """
-        accepted_types = ["APPLICATION", "BOOK",
-                          "GAME", "MOVIE", "SERIE", "TRACK"]
-
-        if type(types) == str:
-            types = [types]
-        assert all([t in accepted_types for t in types])
-
-        filt = ''
-        if len(types) > 0:
-            _types = list(map(lambda x: "'%s'" % x, types))
-            filt = 'WHERE content_type IN (%s)' % (', '.join(_types))
-
-        genre_df = pd.read_sql_query(
-            'SELECT genre_id, name, content_type FROM "genre" %s' % filt, con=db.engine)
-
-        genre_df = cls.reduce_memory(genre_df)
-
-        return genre_df
-
-    @classmethod
     def get_with_genres(cls, types=[], liked_weight=2, user_uuid=None):
         """Get users with liked genre
 
         Args:
             types (list|str, optional): str or list of str of genre content type. Defaults to ["APPLICATION", "BOOK", "GAME", "MOVIE", "SERIE", "TRACK"].
             liked_weight (int, optional): Weight of liked genre. Defaults to 2.
+            user_uuid (str, optional): user uuid. Defaults to None.
 
         Returns:
             DataFrame: user and liked genre dataframe
@@ -109,7 +85,7 @@ class User:
         user_df = cls.reduce_memory(user_df)
 
         # get genres list
-        genre_df = cls.get_genres(types)
+        genre_df = Genre.get_genres(types)
         genre_df['name'] = genre_df['content_type'] + genre_df['name']
         genre_df.drop(['content_type', 'genre_id'], axis=1, inplace=True)
 

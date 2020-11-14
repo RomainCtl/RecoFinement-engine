@@ -30,7 +30,7 @@ class FromSimilarContent(Engine):
             st_time = datetime.utcnow()
 
             # Get user
-            self.user_df = User.get_users(user_uuid=self.user_uuid)
+            self.user_df = User.get(user_uuid=self.user_uuid)
 
             # Check we have a result for this user uuid
             if self.user_df.shape[0] == 0:

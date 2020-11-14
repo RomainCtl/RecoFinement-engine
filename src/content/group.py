@@ -1,4 +1,5 @@
 from src.utils import db
+from .genre import Genre
 
 import pandas as pd
 import numpy as np
@@ -16,33 +17,40 @@ class Group:
         return group_df
 
     @classmethod
-    def get_genres(cls, types=[]):
-        """Get all gernes
+    def get(cls, group_id=None):
+        """Get all groups and members list
+
+        Args:
+            group_id (int, optional): group unique id. Defaults to None.
 
         Returns:
-            DataFrame: genre dataframe
+            Dataframe: group dataframe ["group_id", "users_ids"]
         """
-        accepted_types = ["APPLICATION", "BOOK",
-                          "GAME", "MOVIE", "SERIE", "TRACK"]
+        grp = ''
+        if group_id is not None:
+            grp = "WHERE g.group_id = '%s'" % group_id
 
-        if type(types) == str:
-            types = [types]
-        assert all([t in accepted_types for t in types])
+        group_df = pd.read_sql_query(
+            'SELECT g.group_id, string_agg(g.user_id: : varchar, \',\') AS users_ids FROM ' +
+            '(SELECT g.group_id, u.user_id FROM "group" AS g INNER JOIN "user" AS u ON u.user_id = g.owner_id ' +
+            'UNION SELECT gm.group_id, gm.user_id FROM "group_members" AS gm) AS g %s GROUP BY g.group_id' % grp, con=db.engine)
 
-        filt = ''
-        if len(types) > 0:
-            _types = list(map(lambda x: "'%s'" % x, types))
-            filt = 'WHERE content_type IN (%s)' % (', '.join(_types))
+        group_df = cls.reduce_memory(group_df)
 
-        genre_df = pd.read_sql_query(
-            'SELECT genre_id, name, content_type FROM "genre" %s' % filt, con=db.engine)
-
-        genre_df = cls.reduce_memory(genre_df)
-
-        return genre_df
+        return group_df
 
     @classmethod
     def get_with_genres(cls, types=[], liked_weight=2, group_id=None):
+        """Get groups with liked genre
+
+        Args:
+            types (list|str, optional): str or list of str of genre content type. Defaults to ["APPLICATION", "BOOK", "GAME", "MOVIE", "SERIE", "TRACK"]. Defaults to [].
+            liked_weight (int, optional): Weight of liked genre. Defaults to 2.
+            group_id (int, optional): group unique id. Defaults to None.
+
+        Returns:
+            DataFrame: group and liked genre dataframe
+        """
         accepted_types = ["APPLICATION", "BOOK",
                           "GAME", "MOVIE", "SERIE", "TRACK"]
 
@@ -84,7 +92,7 @@ class Group:
         group_df = cls.reduce_memory(group_df)
 
         # get genres list
-        genre_df = cls.get_genres(types)
+        genre_df = Genre.get_genres(types)
         genre_df['name'] = genre_df['content_type'] + genre_df['name']
         genre_df.drop(['content_type', 'genre_id'], axis=1, inplace=True)
 
