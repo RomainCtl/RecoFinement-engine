@@ -53,6 +53,15 @@ def from_similar_content_train():
     return {"started": True}, 202
 
 
+@app.route("/test", methods=["PUT"])
+@token_auth
+def test():
+    from src.content import Group
+    g = Group.get_with_genres("APPLICATION")
+    print(g)
+    return {"started": True}, 202
+
+
 @app.route("/recommend/", methods=["PUT"])
 @token_auth
 def recommend():

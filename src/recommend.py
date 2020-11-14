@@ -34,7 +34,6 @@ class RecommendUser(Engine):
         start_from_similar_content_engine(
             wait=True, user_uuid=self.user_uuid)  # from user top rating content
         # TODO Collaboratif filtering
-        # TODO Recommend content from group profile  # User may not have any group on registration
 
 
 def start_popularity_engine(wait=True):
