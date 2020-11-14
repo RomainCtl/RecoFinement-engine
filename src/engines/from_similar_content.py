@@ -40,22 +40,40 @@ class FromSimilarContent(Engine):
             # for each user
             for index, user in self.user_df.iterrows():
                 # Get media (only rating for now)
-                self.media_df = media.get_for_profile(
+                self.media_df = media.get_meta(
                     [media.id, "rating"], user["user_id"])
 
+                # Do not taking bad content that user do not like
+                self.media_df = self.media_df[self.media_df["rating"] >= 3]
+
                 # Get list of similars content from already rate content
-                # Order this list by most popular and make a selection
+                similars_df = pd.DataFrame(
+                    columns=[media.id, "similar_"+media.id, "similarity", "popularity_score", "rating"])
+                for index, m in self.media_df.iterrows():
+                    d = media.get_similars(m[media.id])
+                    d["rating"] = m["rating"]
+                    similars_df = similars_df.append(
+                        d,
+                        ignore_index=True,
+                    )
+
+                # Order this list by most popular and make a selection (max popularity_score is 5 (also = max rate), see popularity engine (IMDB formula))
+                similars_df["popularity_score"] = similars_df["popularity_score"].fillna(
+                    0)
+                similars_df["score"] = similars_df["similarity"] * \
+                    similars_df["rating"] + similars_df["popularity_score"]
+
+                similars_df.drop(
+                    columns=[media.id, "similarity", "popularity_score", "rating"], axis=1, inplace=True)
 
                 # Store result
-                recommendationTable_df = None
-
                 values = []
-                for id, score in recommendationTable_df.items():
+                for index, item in similars_df.iterrows():
                     values.append(
                         {
                             "user_id": int(user["user_id"]),
-                            media.id: media.id_type(id),
-                            "score": float(score),
+                            media.id: media.id_type(item["similar_"+media.id]),
+                            "score": float(item["score"]),
                             "engine": self.__class__.__name__,
                             "engine_priority": self.__engine_priority__,
                         }
@@ -68,12 +86,13 @@ class FromSimilarContent(Engine):
                     session.execute(
                         text('DELETE FROM "%s" WHERE user_id = \'%s\' AND engine = \'%s\'' % (media.tablename_recommended, user["user_id"], self.__class__.__name__)))
 
-                    markers = ':user_id, :%s, :score, :engine, :engine_priority' % (
-                        media.id)
-                    ins = 'INSERT INTO {tablename} VALUES ({markers})'
-                    ins = ins.format(
-                        tablename=media.tablename_recommended, markers=markers)
-                    session.execute(ins, values)
+                    if len(values) > 0:
+                        markers = ':user_id, :%s, :score, :engine, :engine_priority' % (
+                            media.id)
+                        ins = 'INSERT INTO {tablename} VALUES ({markers})'
+                        ins = ins.format(
+                            tablename=media.tablename_recommended, markers=markers)
+                        session.execute(ins, values)
 
             self.logger.info("%s recommendation from similar content in %s (%s lines)" % (
                 media.uppername, datetime.utcnow()-st_time, len_values))
