@@ -1,4 +1,4 @@
-from src.engines import Popularity, ContentSimilarities, FromUserProfile, FromSimilarContent
+from src.engines import Popularity, ContentSimilarities, FromProfile, FromSimilarContent
 from src.engines.engine import Engine
 
 from threading import Thread
@@ -15,7 +15,7 @@ class Recommend(Engine):
         start_from_similar_content_engine(
             wait=True)  # from user top rating content
         # TODO Recommend content from group profile
-        start_from_user_profile_engine(wait=True)
+        start_from_profile_engine(wait=True)
         # TODO Collaboratif filtering
 
 
@@ -29,7 +29,7 @@ class RecommendUser(Engine):
         uuid.UUID(user_uuid)
 
     def train(self):
-        start_from_user_profile_engine(
+        start_from_profile_engine(
             wait=True, user_uuid=self.user_uuid)  # the fastest first
         start_from_similar_content_engine(
             wait=True, user_uuid=self.user_uuid)  # from user top rating content
@@ -50,8 +50,8 @@ def start_similarities_engine(wait=True):
         c.join()
 
 
-def start_from_user_profile_engine(wait=True, user_uuid=None):
-    fup = FromUserProfile(user_uuid=None)
+def start_from_profile_engine(wait=True, user_uuid=None):
+    fup = FromProfile(user_uuid=None)
     fup.start()
     if wait:
         fup.join()

@@ -9,10 +9,10 @@ import numpy as np
 import uuid
 
 
-class FromUserProfile(Engine):
-    """(Re-)Set top recommended media (per type) for each user
+class FromProfile(Engine):
+    """(Re-)Set top recommended media (per type) for each user (or group)
 
-    The main purpose it to recommend items based on the user profile (contruction of liked genre + explicit liked genres)
+    The main purpose it to recommend items based on the profile of a user or a group (contruction of liked genre + explicit liked genres)
     """
     __engine_priority__ = 4
 
