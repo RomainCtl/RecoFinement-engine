@@ -6,6 +6,8 @@ import numpy as np
 
 
 class User:
+    id = "user_id"
+
     @staticmethod
     def reduce_memory(user_df):
         cols = list(user_df.columns)

@@ -6,6 +6,8 @@ import numpy as np
 
 
 class Group:
+    id = "group_id"
+
     @staticmethod
     def reduce_memory(group_df):
         cols = list(group_df.columns)
@@ -31,7 +33,7 @@ class Group:
             grp = "WHERE g.group_id = '%s'" % group_id
 
         group_df = pd.read_sql_query(
-            'SELECT g.group_id, string_agg(g.user_id: : varchar, \',\') AS users_ids FROM ' +
+            'SELECT g.group_id, string_agg(g.user_id: : varchar, \',\') AS user_id FROM ' +
             '(SELECT g.group_id, u.user_id FROM "group" AS g INNER JOIN "user" AS u ON u.user_id = g.owner_id ' +
             'UNION SELECT gm.group_id, gm.user_id FROM "group_members" AS gm) AS g %s GROUP BY g.group_id' % grp, con=db.engine)
 
