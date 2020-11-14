@@ -83,6 +83,23 @@ class Track:
         return track_df
 
     @classmethod
+    def get_similars(cls, track_id):
+        """Get all similars content of a track
+
+        Args:
+            track_id (int): track unique id
+
+        Returns:
+            Dataframe: similars track dataframe
+        """
+        track_df = pd.read_sql_query(
+            'SELECT st.track_id0 as track_id, st.track_id1 as similar_track_id, st.similarity, s.popularity_score FROM "similars_track" AS st INNER JOIN "track" AS t ON t.track_id = st.track_id1 WHERE track_id0 = \'%s\'' % track_id, con=db.engine)
+
+        track_df = cls.reduce_memory(track_df)
+
+        return track_df
+
+    @classmethod
     def get_for_profile(cls):
         """Get all tracks id
 

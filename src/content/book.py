@@ -33,8 +33,37 @@ class Book:
         return book_df
 
     @classmethod
-    def get_meta(cls, cols=None):
-        pass
+    def get_meta(cls, cols=None, user_id=None):
+        """Get user metabook metadata
+
+        Returns:
+            DataFrame: pandas DataFrame
+        """
+        if cols is None:
+            cols = cls.__meta_cols__
+        assert all([x in cls.__meta_cols__ for x in cols])
+
+        filt = ''
+        if user_id is not None:
+            filt = "WHERE user_id = '%s'" % user_id
+
+        df = pd.read_sql_query('SELECT %s FROM "meta_user_book" %s' % (
+            ', '.join(cols), filt), con=db.engine)
+
+        # Reduce memory usage for ratings
+        if 'user_id' in cols:
+            df['user_id'] = df['user_id'].astype("uint32")
+        if 'isbn' in cols:
+            df['isbn'] = df['isbn'].astype("uint16")
+        if 'rating' in cols:
+            df['rating'] = df['rating'].fillna(0)
+            df['rating'] = df['rating'].astype("uint8")
+        if 'purchase' in cols:
+            df['purchase'] = df['purchase'].astype("uint16")
+        if 'review_see_count' in cols:
+            df['review_see_count'] = df['review_see_count'].astype("uint16")
+
+        return df
 
     @classmethod
     def get_ratings(cls):
@@ -47,6 +76,23 @@ class Book:
             'SELECT isbn, rating, rating_count FROM "book"', con=db.engine)
 
         # Reduce memory
+        book_df = cls.reduce_memory(book_df)
+
+        return book_df
+
+    @classmethod
+    def get_similars(cls, isbn):
+        """Get all similars content of a book
+
+        Args:
+            isbn (str): book unique id
+
+        Returns:
+            Dataframe: similars book dataframe
+        """
+        book_df = pd.read_sql_query(
+            'SELECT sb.isbn0 as isbn, sb.isbn1 as similar_isbn, sb.similarity, b.popularity_score FROM "similars_book" AS sb INNER JOIN "book" AS b ON b.isbn = sb.isbn1 WHERE isbn0 = \'%s\'' % isbn, con=db.engine)
+
         book_df = cls.reduce_memory(book_df)
 
         return book_df
