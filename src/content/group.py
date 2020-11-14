@@ -7,6 +7,7 @@ import numpy as np
 
 class Group:
     id = "group_id"
+    recommended_ext = "_for_group"
 
     @staticmethod
     def reduce_memory(group_df):

@@ -15,8 +15,10 @@ class FromProfile(Engine):
     The main purpose it to recommend items based on the profile of a user or a group (contruction of liked genre + explicit liked genres)
     """
     __engine_priority__ = 4
+    user_uuid = None
+    group_id = None
 
-    def __init__(self, *args, user_uuid=None, is_group=False, **kwargs):
+    def __init__(self, *args, user_uuid=None, group_id=None, is_group=False, **kwargs):
         """
         Args:
             user_uuid (uuid|str, optional): user uuid to start engine for this specific user. Defaults to None.
@@ -27,6 +29,7 @@ class FromProfile(Engine):
         self.is_group = is_group
         if self.is_group:
             self.obj = Group
+            self.group_id = group_id
         else:
             self.obj = User
             self.user_uuid = user_uuid
@@ -45,7 +48,8 @@ class FromProfile(Engine):
             st_time = datetime.utcnow()
 
             if self.is_group:
-                self.obj_df = self.obj.get_with_genres(media.uppername)
+                self.obj_df = self.obj.get_with_genres(
+                    media.uppername, group_id=self.group_id)
             else:
                 # Get user
                 self.obj_df = self.obj.get_with_genres(
@@ -123,13 +127,13 @@ class FromProfile(Engine):
                 with db as session:
                     # Reset list of recommended `media`
                     session.execute(
-                        text('DELETE FROM "%s" WHERE %s = \'%s\' AND engine = \'%s\'' % (media.tablename_recommended, self.obj.id, user[self.obj.id], self.__class__.__name__)))
+                        text('DELETE FROM "%s" WHERE %s = \'%s\' AND engine = \'%s\'' % (media.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__)))
 
                     markers = ':%s, :%s, :score, :engine, :engine_priority' % (
                         self.obj.id, media.id)
                     ins = 'INSERT INTO {tablename} VALUES ({markers})'
                     ins = ins.format(
-                        tablename=media.tablename_recommended, markers=markers)
+                        tablename=media.tablename_recommended + self.obj.recommended_ext, markers=markers)
                     session.execute(ins, values)
 
             self.logger.info("%s recommendation from user profile performed in %s (%s lines)" % (

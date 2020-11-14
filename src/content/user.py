@@ -7,6 +7,7 @@ import numpy as np
 
 class User:
     id = "user_id"
+    recommended_ext = ""
 
     @staticmethod
     def reduce_memory(user_df):
