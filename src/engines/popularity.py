@@ -22,7 +22,7 @@ class Popularity(Engine):
 
             df = media.get_ratings()
 
-            q_df = self._get_populars(df)
+            q_df = self._get_populars(df, size=1000)
 
             # open a transaction
             with db as session:

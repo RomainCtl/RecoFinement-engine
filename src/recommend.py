@@ -1,9 +1,10 @@
-from src.engines import Popularity, ContentSimilarities, FromUserProfile
+from src.engines import Popularity, ContentSimilarities, FromUserProfile, FromSimilarContent
 from src.engines.engine import Engine
 
 from threading import Thread
 from datetime import datetime
 from flask import current_app
+import uuid
 
 
 class Recommend(Engine):
@@ -11,7 +12,8 @@ class Recommend(Engine):
         start_popularity_engine(wait=True)
         start_similarities_engine(wait=True)
 
-        # TODO Recommend content from similarities (from user top rating content)
+        start_from_similar_content_engine(
+            wait=True)  # from user top rating content
         # TODO Recommend content from group profile
         start_from_user_profile_engine(wait=True)
         # TODO Collaboratif filtering
@@ -27,10 +29,12 @@ class RecommendUser(Engine):
         uuid.UUID(user_uuid)
 
     def train(self):
-        # TODO Recommend content from similarities (from user top rating content)
-        # TODO Recommend content from group profile
-        start_from_user_profile_engine(wait=True)
+        start_from_user_profile_engine(
+            wait=True, user_uuid=self.user_uuid)  # the fastest first
+        start_from_similar_content_engine(
+            wait=True, user_uuid=self.user_uuid)  # from user top rating content
         # TODO Collaboratif filtering
+        # TODO Recommend content from group profile  # User may not have any group on registration
 
 
 def start_popularity_engine(wait=True):
@@ -47,8 +51,15 @@ def start_similarities_engine(wait=True):
         c.join()
 
 
-def start_from_user_profile_engine(wait=True):
-    fup = FromUserProfile()
+def start_from_user_profile_engine(wait=True, user_uuid=None):
+    fup = FromUserProfile(user_uuid=None)
     fup.start()
     if wait:
         fup.join()
+
+
+def start_from_similar_content_engine(wait=True, user_uuid=None):
+    fsc = FromSimilarContent(user_uuid=None)
+    fsc.start()
+    if wait:
+        fsc.join()

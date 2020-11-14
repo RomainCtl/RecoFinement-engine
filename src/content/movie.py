@@ -89,6 +89,23 @@ class Movie:
         return movie_df
 
     @classmethod
+    def get_similars(cls, movie_id):
+        """Get all similars content of a movie
+
+        Args:
+            movie_id (int): movie unique id
+
+        Returns:
+            Dataframe: similars movie dataframe
+        """
+        movie_df = pd.read_sql_query(
+            'SELECT sm.movie_id0 AS movie_id, sm.movie_id1 AS similar_movie_id, sm.similarity, m.popularity_score FROM "similars_movie" AS sm INNER JOIN "movie" AS m ON m.movie_id = sm.movie_id1 WHERE movie_id0 = \'%s\'' % movie_id, con=db.engine)
+
+        movie_df = cls.reduce_memory(movie_df)
+
+        return movie_df
+
+    @classmethod
     def get_for_profile(cls):
         movie_df = pd.read_sql_query(
             'SELECT m.movie_id, string_agg(g.content_type || g.name, \',\') AS genres FROM "movie" AS m LEFT OUTER JOIN "movie_genres" AS tg ON tg.movie_id = m.movie_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = tg.genre_id GROUP BY m.movie_id', con=db.engine)

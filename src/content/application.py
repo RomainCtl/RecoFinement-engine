@@ -35,18 +35,22 @@ class Application:
         return app_df
 
     @classmethod
-    def get_meta(cls, cols=None):
+    def get_meta(cls, cols=None, user_id=None):
         if cols is None:
             cols = cls.__meta_cols__
         assert all([x in cls.__meta_cols__ for x in cols])
 
-        df = pd.read_sql_query('SELECT %s FROM "meta_user_application"' % (
-            ', '.join(cols)), con=db.engine)
+        filt = ''
+        if user_id is not None:
+            filt = "WHERE user_id = '%s'" % user_id
+
+        df = pd.read_sql_query('SELECT %s FROM "meta_user_application" %s' % (
+            ', '.join(cols), filt), con=db.engine)
 
         # Reduce memory usage for ratings
         if 'user_id' in cols:
             df['user_id'] = df['user_id'].astype("uint32")
-        if 'track_id' in cols:
+        if 'app_id' in cols:
             df['app_id'] = df['app_id'].astype("uint16")
         if 'rating' in cols:
             df['rating'] = df['rating'].astype("uint8")
@@ -70,6 +74,23 @@ class Application:
             'SELECT app_id, rating, reviews as rating_count FROM "application"', con=db.engine)
 
         # Reduce memory
+        app_df = cls.reduce_memory(app_df)
+
+        return app_df
+
+    @classmethod
+    def get_similars(cls, app_id):
+        """Get all similars content of an app
+
+        Args:
+            app_id (int): app unique id
+
+        Returns:
+            Dataframe: similars application dataframe
+        """
+        app_df = pd.read_sql_query(
+            'SELECT sa.app_id0 AS app_id, sa.app_id1 AS similar_app_id, sa.similarity, a.popularity_score FROM "similars_application" AS sa INNER JOIN "application" AS a ON a.app_id = sa.app_id1 WHERE app_id0 = \'%s\'' % app_id, con=db.engine)
+
         app_df = cls.reduce_memory(app_df)
 
         return app_df

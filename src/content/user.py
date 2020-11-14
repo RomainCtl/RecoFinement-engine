@@ -16,7 +16,7 @@ class User:
         return user_df
 
     @classmethod
-    def get_users(cls):
+    def get_users(cls, user_uuid=None):
         """Get all users
 
         NOTE we recover only the real users, not those recovered via datasets.
@@ -24,8 +24,12 @@ class User:
         Returns:
             DataFrame: user dataframe
         """
+        usr = ''
+        if user_uuid is not None:
+            usr = "AND uuid = '%s'" % user_uuid
+
         user_df = pd.read_sql_query(
-            'SELECT user_id FROM "user" WHERE password_hash <> \'no_pwd\'', con=db.engine)
+            'SELECT user_id FROM "user" WHERE password_hash <> \'no_pwd\' %s' % usr, con=db.engine)
 
         user_df = cls.reduce_memory(user_df)
 

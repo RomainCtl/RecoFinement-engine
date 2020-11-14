@@ -82,6 +82,23 @@ class Game:
         return game_df
 
     @classmethod
+    def get_similars(cls, game_id):
+        """Get all similars content of a game
+
+        Args:
+            game_id (int): game unique id
+
+        Returns:
+            Dataframe: similars game dataframe
+        """
+        game_df = pd.read_sql_query(
+            'SELECT sg.game_id0 as game_id, sg.game_id1 as similar_game_id, sg.similarity, g.popularity_score FROM "similars_game" AS sg INNER JOIN "game" AS g ON g.game_id = sg.game_id1 WHERE game_id0 = \'%s\'' % game_id, con=db.engine)
+
+        game_df = cls.reduce_memory(game_df)
+
+        return game_df
+
+    @classmethod
     def get_for_profile(cls):
         game_df = pd.read_sql_query(
             'SELECT ga.game_id, string_agg(g.content_type || g.name, \',\') AS genres FROM "game" AS ga LEFT OUTER JOIN "game_genres" AS tg ON tg.game_id = ga.game_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = tg.genre_id GROUP BY ga.game_id', con=db.engine)
