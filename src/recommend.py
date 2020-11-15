@@ -25,10 +25,7 @@ class RecommendUser(Engine):
     def __init__(self, *args, user_uuid, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.user_uuid = user_uuid
-
-        # raise an ValueError if invalid uuid format
-        uuid.UUID(user_uuid)
+        self.user_uuid = str(user_uuid)
 
     def train(self):
         start_from_profile_engine(

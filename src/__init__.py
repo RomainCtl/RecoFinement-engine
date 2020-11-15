@@ -78,10 +78,6 @@ def recommend():
 @app.route("/recommend/<uuid:user_uuid>", methods=["PUT"])
 @token_auth
 def recommend_user(user_uuid):
-    try:
-        eng = RecommendUser()
-        eng.start()
-    except (ValueError, TypeError):
-        return {"started": False, "message": "Invalid uuid"}, 400
-    else:
-        return {"started": True}, 202
+    eng = RecommendUser(user_uuid=user_uuid)
+    eng.start()
+    return {"started": True}, 202
