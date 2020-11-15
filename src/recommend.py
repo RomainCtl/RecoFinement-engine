@@ -14,9 +14,11 @@ class Recommend(Engine):
 
         start_from_similar_content_engine(
             wait=True)  # from user top rating content
-        # TODO Recommend content from group profile
         start_from_profile_engine(wait=True)
         # TODO Collaboratif filtering
+
+        start_from_similar_content_engine_for_group(wait=True)
+        start_from_profile_engine_for_group(wait=True)
 
 
 class RecommendUser(Engine):
@@ -51,14 +53,28 @@ def start_similarities_engine(wait=True):
 
 
 def start_from_profile_engine(wait=True, user_uuid=None):
-    fup = FromProfile(user_uuid=None)
+    fup = FromProfile(user_uuid=user_uuid)
     fup.start()
     if wait:
         fup.join()
 
 
 def start_from_similar_content_engine(wait=True, user_uuid=None):
-    fsc = FromSimilarContent(user_uuid=None)
+    fsc = FromSimilarContent(user_uuid=user_uuid)
+    fsc.start()
+    if wait:
+        fsc.join()
+
+
+def start_from_profile_engine_for_group(wait=True, group_id=None):
+    fup = FromProfile(group_id=group_id, is_group=True)
+    fup.start()
+    if wait:
+        fup.join()
+
+
+def start_from_similar_content_engine_for_group(wait=True, group_id=None):
+    fsc = FromSimilarContent(group_id=group_id, is_group=True)
     fsc.start()
     if wait:
         fsc.join()

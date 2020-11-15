@@ -1,4 +1,4 @@
-from .recommend import Recommend, RecommendUser, start_popularity_engine, start_similarities_engine, start_from_profile_engine, start_from_similar_content_engine
+from .recommend import Recommend, RecommendUser, start_popularity_engine, start_similarities_engine, start_from_profile_engine, start_from_similar_content_engine, start_from_profile_engine_for_group, start_from_similar_content_engine_for_group
 
 from flask import request, current_app, abort
 from flask_api import FlaskAPI
@@ -53,12 +53,17 @@ def from_similar_content_train():
     return {"started": True}, 202
 
 
-@app.route("/test", methods=["PUT"])
+@app.route("/from_profile/group/train", methods=["PUT"])
 @token_auth
-def test():
-    from src.content import Group
-    g = Group.get_with_genres("APPLICATION")
-    print(g)
+def from_group_profile_train():
+    start_from_profile_engine_for_group(wait=False)
+    return {"started": True}, 202
+
+
+@app.route("/from_similar_content/group/train", methods=["PUT"])
+@token_auth
+def from_similar_content_group_train():
+    start_from_similar_content_engine_for_group(wait=False)
     return {"started": True}, 202
 
 
