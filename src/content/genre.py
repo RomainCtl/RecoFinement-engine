@@ -5,6 +5,14 @@ import numpy as np
 
 
 class Genre:
+    @staticmethod
+    def reduce_memory(genre_df):
+        cols = list(genre_df.columns)
+        if "genre_id" in cols:
+            genre_df["genre_id"] = genre_df["genre_id"].astype("uint16")
+
+        return genre_df
+
     @classmethod
     def get_genres(cls, types=[]):
         """Get all gernes

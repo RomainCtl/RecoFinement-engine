@@ -93,7 +93,7 @@ class Track:
             Dataframe: similars track dataframe
         """
         track_df = pd.read_sql_query(
-            'SELECT st.track_id0 as track_id, st.track_id1 as similar_track_id, st.similarity, s.popularity_score FROM "similars_track" AS st INNER JOIN "track" AS t ON t.track_id = st.track_id1 WHERE track_id0 = \'%s\'' % track_id, con=db.engine)
+            'SELECT st.track_id0 as track_id, st.track_id1 as similar_track_id, st.similarity, t.popularity_score FROM "similars_track" AS st INNER JOIN "track" AS t ON t.track_id = st.track_id1 WHERE st.track_id0 = \'%s\'' % track_id, con=db.engine)
 
         track_df = cls.reduce_memory(track_df)
 

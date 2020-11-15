@@ -76,7 +76,7 @@ class FromProfile(Engine):
             for index, user in self.obj_df.iterrows():
                 if self.is_group:
                     user_input = pd.DataFrame(columns=[media.id, "rating"])
-                    for u in user['user_id'].split(","):
+                    for u in user['user_id']:
                         user_input = user_input.append(
                             media.get_meta([media.id, "rating"], u),
                             ignore_index=True

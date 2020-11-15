@@ -34,7 +34,7 @@ class Group:
             grp = "WHERE g.group_id = '%s'" % group_id
 
         group_df = pd.read_sql_query(
-            'SELECT g.group_id, string_agg(g.user_id: : varchar, \',\') AS user_id FROM ' +
+            'SELECT g.group_id, string_agg(g.user_id::varchar, \',\') AS user_id FROM ' +
             '(SELECT g.group_id, u.user_id FROM "group" AS g INNER JOIN "user" AS u ON u.user_id = g.owner_id ' +
             'UNION SELECT gm.group_id, gm.user_id FROM "group_members" AS gm) AS g %s GROUP BY g.group_id' % grp, con=db.engine)
 
@@ -67,28 +67,24 @@ class Group:
             filt = 'WHERE g.content_type IN (%s)' % (', '.join(_types))
 
         df = pd.read_sql_query(
-            'SELECT u.group_id, g.content_type || g.name AS genres, count(g.content_type || g.name) ' +
+            'SELECT u.group_id, u.user_id, g.content_type || g.name AS genres, count(g.content_type || g.name) ' +
             'FROM (' +
             'SELECT g.group_id, u.user_id FROM "group" AS g INNER JOIN "user" AS u ON u.user_id = g.owner_id' +
             ' UNION ' +
             'SELECT gm.group_id, gm.user_id FROM "group_members" AS gm) AS u ' +
             'LEFT OUTER JOIN "liked_genres" AS lg ON u.user_id = lg.user_id ' +
             'LEFT OUTER JOIN "genre" AS g ON g.genre_id = lg.genre_id ' +
-            '%s GROUP BY u.group_id, genres' % filt, con=db.engine)
+            '%s GROUP BY u.group_id, u.user_id, genres' % filt, con=db.engine)
 
         if df.shape[0] == 0:
             return None
 
-        # Concat liked genre to list
-        def list_of_genre(genre_type):
-            res = list(genre_type["genres"])
-            if len(''.join(res)) == 0:
-                return ""
-            return res
+        def list_of(c):
+            return list(set(c))
 
         group_df = df.copy().fillna('')
-        group_df = group_df.groupby("group_id").apply(
-            list_of_genre).reset_index()
+        group_df = group_df.groupby("group_id").agg(
+            {'user_id': list_of, 'genres': list_of}).reset_index()
         group_df.rename(columns={0: 'genres'}, inplace=True)
 
         # reduce memory
