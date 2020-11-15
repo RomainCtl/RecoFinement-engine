@@ -1,4 +1,4 @@
-from src.engines import Popularity, ContentSimilarities, FromUserProfile, FromSimilarContent
+from src.engines import Popularity, ContentSimilarities, FromProfile, FromSimilarContent
 from src.engines.engine import Engine
 
 from threading import Thread
@@ -14,27 +14,25 @@ class Recommend(Engine):
 
         start_from_similar_content_engine(
             wait=True)  # from user top rating content
-        # TODO Recommend content from group profile
-        start_from_user_profile_engine(wait=True)
+        start_from_profile_engine(wait=True)
         # TODO Collaboratif filtering
+
+        start_from_similar_content_engine_for_group(wait=True)
+        start_from_profile_engine_for_group(wait=True)
 
 
 class RecommendUser(Engine):
     def __init__(self, *args, user_uuid, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.user_uuid = user_uuid
-
-        # raise an ValueError if invalid uuid format
-        uuid.UUID(user_uuid)
+        self.user_uuid = str(user_uuid)
 
     def train(self):
-        start_from_user_profile_engine(
+        start_from_profile_engine(
             wait=True, user_uuid=self.user_uuid)  # the fastest first
         start_from_similar_content_engine(
             wait=True, user_uuid=self.user_uuid)  # from user top rating content
         # TODO Collaboratif filtering
-        # TODO Recommend content from group profile  # User may not have any group on registration
 
 
 def start_popularity_engine(wait=True):
@@ -51,15 +49,29 @@ def start_similarities_engine(wait=True):
         c.join()
 
 
-def start_from_user_profile_engine(wait=True, user_uuid=None):
-    fup = FromUserProfile(user_uuid=None)
+def start_from_profile_engine(wait=True, user_uuid=None):
+    fup = FromProfile(user_uuid=user_uuid)
     fup.start()
     if wait:
         fup.join()
 
 
 def start_from_similar_content_engine(wait=True, user_uuid=None):
-    fsc = FromSimilarContent(user_uuid=None)
+    fsc = FromSimilarContent(user_uuid=user_uuid)
+    fsc.start()
+    if wait:
+        fsc.join()
+
+
+def start_from_profile_engine_for_group(wait=True, group_id=None):
+    fup = FromProfile(group_id=group_id, is_group=True)
+    fup.start()
+    if wait:
+        fup.join()
+
+
+def start_from_similar_content_engine_for_group(wait=True, group_id=None):
+    fsc = FromSimilarContent(group_id=group_id, is_group=True)
     fsc.start()
     if wait:
         fsc.join()

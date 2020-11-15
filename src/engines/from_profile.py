@@ -1,4 +1,4 @@
-from src.content import User, Application, Book
+from src.content import User, Group, Application, Book
 from src.utils import db
 from .engine import Engine
 
@@ -9,21 +9,34 @@ import numpy as np
 import uuid
 
 
-class FromUserProfile(Engine):
-    """(Re-)Set top recommended media (per type) for each user
+class FromProfile(Engine):
+    """(Re-)Set top recommended media (per type) for each user (or group)
 
-    The main purpose it to recommend items based on the user profile (contruction of liked genre + explicit liked genres)
+    The main purpose it to recommend items based on the profile of a user or a group (contruction of liked genre + explicit liked genres)
     """
     __engine_priority__ = 4
+    user_uuid = None
+    group_id = None
 
-    def __init__(self, *args, user_uuid=None, **kwargs):
+    def __init__(self, *args, user_uuid=None, group_id=None, is_group=False, **kwargs):
+        """
+        Args:
+            user_uuid (uuid|str, optional): user uuid to start engine for this specific user. Defaults to None.
+            is_group (bool, optional): if engine will work for user profile or group profile. Defaults to False.
+        """
         super().__init__(*args, **kwargs)
 
-        self.user_uuid = user_uuid
-        try:
-            uuid.UUID(user_uuid)
-        except (ValueError, TypeError):
-            self.user_uuid = None
+        self.is_group = is_group
+        if self.is_group:
+            self.obj = Group
+            self.group_id = group_id
+        else:
+            self.obj = User
+            self.user_uuid = user_uuid
+            try:
+                uuid.UUID(user_uuid)
+            except (ValueError, TypeError):
+                self.user_uuid = None
 
     def train(self):
         for media in self.__media__:
@@ -34,12 +47,16 @@ class FromUserProfile(Engine):
                 continue
             st_time = datetime.utcnow()
 
-            # Get user
-            self.user_df = User.get_with_genres(
-                media.uppername, user_uuid=self.user_uuid)
+            if self.is_group:
+                self.obj_df = self.obj.get_with_genres(
+                    media.uppername, group_id=self.group_id)
+            else:
+                # Get user
+                self.obj_df = self.obj.get_with_genres(
+                    media.uppername, user_uuid=self.user_uuid)
 
             # Check we have a result for this user uuid
-            if self.user_df is None:
+            if self.obj_df is None:
                 continue
 
             # Get media (only rating for now)
@@ -56,9 +73,17 @@ class FromUserProfile(Engine):
 
             len_values = 0
             # for each user
-            for index, user in self.user_df.iterrows():
-                user_input = media.get_meta(
-                    [media.id, "rating"], user["user_id"])
+            for index, user in self.obj_df.iterrows():
+                if self.is_group:
+                    user_input = pd.DataFrame(columns=[media.id, "rating"])
+                    for u in user['user_id']:
+                        user_input = user_input.append(
+                            media.get_meta([media.id, "rating"], u),
+                            ignore_index=True
+                        )
+                else:
+                    user_input = media.get_meta(
+                        [media.id, "rating"], user["user_id"])
 
                 user_profile = self.learning_user_profile(
                     user, media.id, user_input)
@@ -89,7 +114,7 @@ class FromUserProfile(Engine):
                 for id, score in recommendationTable_df.items():
                     values.append(
                         {
-                            "user_id": int(user["user_id"]),
+                            self.obj.id: int(user[self.obj.id]),
                             media.id: media.id_type(id),
                             "score": float(score),
                             "engine": self.__class__.__name__,
@@ -102,13 +127,13 @@ class FromUserProfile(Engine):
                 with db as session:
                     # Reset list of recommended `media`
                     session.execute(
-                        text('DELETE FROM "%s" WHERE user_id = \'%s\' AND engine = \'%s\'' % (media.tablename_recommended, user["user_id"], self.__class__.__name__)))
+                        text('DELETE FROM "%s" WHERE %s = \'%s\' AND engine = \'%s\'' % (media.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__)))
 
-                    markers = ':user_id, :%s, :score, :engine, :engine_priority' % (
-                        media.id)
+                    markers = ':%s, :%s, :score, :engine, :engine_priority' % (
+                        self.obj.id, media.id)
                     ins = 'INSERT INTO {tablename} VALUES ({markers})'
                     ins = ins.format(
-                        tablename=media.tablename_recommended, markers=markers)
+                        tablename=media.tablename_recommended + self.obj.recommended_ext, markers=markers)
                     session.execute(ins, values)
 
             self.logger.info("%s recommendation from user profile performed in %s (%s lines)" % (

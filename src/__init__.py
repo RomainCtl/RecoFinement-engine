@@ -1,4 +1,4 @@
-from .recommend import Recommend, RecommendUser, start_popularity_engine, start_similarities_engine, start_from_user_profile_engine, start_from_similar_content_engine
+from .recommend import Recommend, RecommendUser, start_popularity_engine, start_similarities_engine, start_from_profile_engine, start_from_similar_content_engine, start_from_profile_engine_for_group, start_from_similar_content_engine_for_group
 
 from flask import request, current_app, abort
 from flask_api import FlaskAPI
@@ -39,10 +39,10 @@ def content_similarities_train():
     return {"started": True}, 202
 
 
-@app.route("/from_user_profile/train", methods=["PUT"])
+@app.route("/from_profile/train", methods=["PUT"])
 @token_auth
-def from_user_profile_train():
-    start_from_user_profile_engine(wait=False)
+def from_profile_train():
+    start_from_profile_engine(wait=False)
     return {"started": True}, 202
 
 
@@ -50,6 +50,20 @@ def from_user_profile_train():
 @token_auth
 def from_similar_content_train():
     start_from_similar_content_engine(wait=False)
+    return {"started": True}, 202
+
+
+@app.route("/from_profile/group/train", methods=["PUT"])
+@token_auth
+def from_group_profile_train():
+    start_from_profile_engine_for_group(wait=False)
+    return {"started": True}, 202
+
+
+@app.route("/from_similar_content/group/train", methods=["PUT"])
+@token_auth
+def from_similar_content_group_train():
+    start_from_similar_content_engine_for_group(wait=False)
     return {"started": True}, 202
 
 
@@ -64,10 +78,6 @@ def recommend():
 @app.route("/recommend/<uuid:user_uuid>", methods=["PUT"])
 @token_auth
 def recommend_user(user_uuid):
-    try:
-        eng = RecommendUser()
-        eng.start()
-    except (ValueError, TypeError):
-        return {"started": False, "message": "Invalid uuid"}, 400
-    else:
-        return {"started": True}, 202
+    eng = RecommendUser(user_uuid=user_uuid)
+    eng.start()
+    return {"started": True}, 202
