@@ -28,11 +28,8 @@ class RecommendUser(Engine):
         self.user_uuid = str(user_uuid)
 
     def train(self):
-        start_from_profile_engine(
-            wait=True, user_uuid=self.user_uuid)  # the fastest first
-        start_from_similar_content_engine(
-            wait=True, user_uuid=self.user_uuid)  # from user top rating content
-        # TODO Collaboratif filtering
+        start_from_similar_content_engine(wait=True, user_uuid=self.user_uuid)
+        start_from_profile_engine(wait=True, user_uuid=self.user_uuid)
 
 
 def start_popularity_engine(wait=True):

@@ -50,27 +50,29 @@ class FromSimilarContent(Engine):
             len_values = 0
             # for each user
             for index, user in self.obj_df.iterrows():
-                # Get media (only rating for now)
+                # Get meta
+                meta_cols = [media.id, "rating", "review_see_count"]
                 if self.is_group:
-                    self.media_df = pd.DataFrame(columns=[media.id, "rating"])
+                    self.media_df = pd.DataFrame(columns=meta_cols)
                     for u in user['user_id'].split(","):
                         self.media_df = self.media_df.append(
-                            media.get_meta([media.id, "rating"], u),
+                            media.get_meta(meta_cols, u),
                             ignore_index=True
                         )
                 else:
-                    self.media_df = media.get_meta(
-                        [media.id, "rating"], user["user_id"])
+                    self.media_df = media.get_meta(meta_cols, user["user_id"])
 
                 # Do not taking bad content that user do not like
-                self.media_df = self.media_df[self.media_df["rating"] >= 3]
+                self.media_df = self.media_df[(self.media_df["rating"] >= 3) | (
+                    self.media_df["rating"] == 0)]
 
                 # Get list of similars content from already rate content
                 similars_df = pd.DataFrame(
-                    columns=[media.id, "similar_"+media.id, "similarity", "popularity_score", "rating"])
+                    columns=[media.id, "similar_"+media.id, "similarity", "popularity_score", "rating", "review_see_count"])
                 for index, m in self.media_df.iterrows():
                     d = media.get_similars(m[media.id])
                     d["rating"] = m["rating"]
+                    d["review_see_count"] = m["review_see_count"]
                     similars_df = similars_df.append(
                         d,
                         ignore_index=True,
@@ -79,8 +81,17 @@ class FromSimilarContent(Engine):
                 # Order this list by most popular and make a selection (max popularity_score is 5 (also = max rate), see popularity engine (IMDB formula))
                 similars_df["popularity_score"] = similars_df["popularity_score"].fillna(
                     0)
-                similars_df["score"] = similars_df["similarity"] * \
-                    similars_df["rating"] + similars_df["popularity_score"]
+
+                similars_df["score"] = similars_df["popularity_score"] + \
+                    similars_df["similarity"] * similars_df["rating"] + \
+                    similars_df["similarity"] * similars_df["review_see_count"]
+
+                # To be between 0 and 1
+                similars_df["score"] = similars_df["score"] / \
+                    (5 + similars_df["popularity_score"].max())
+
+                similars_df["score"] = similars_df["score"].apply(
+                    lambda x: 1 if x > 1 else x)
 
                 similars_df.drop(
                     columns=[media.id, "similarity", "popularity_score", "rating"], axis=1, inplace=True)
