@@ -53,6 +53,7 @@ class Application:
         if 'app_id' in cols:
             df['app_id'] = df['app_id'].astype("uint16")
         if 'rating' in cols:
+            df['rating'] = df['rating'].fillna(0)
             df['rating'] = df['rating'].astype("uint8")
         if 'review_see_count' in cols:
             df['review_see_count'] = df['review_see_count'].astype("uint16")
