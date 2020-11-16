@@ -74,16 +74,17 @@ class FromProfile(Engine):
             len_values = 0
             # for each user
             for index, user in self.obj_df.iterrows():
+                # Get meta
+                meta_cols = [media.id, "rating", "review_see_count"]
                 if self.is_group:
-                    user_input = pd.DataFrame(columns=[media.id, "rating"])
+                    user_input = pd.DataFrame(columns=meta_cols)
                     for u in user['user_id']:
                         user_input = user_input.append(
-                            media.get_meta([media.id, "rating"], u),
+                            media.get_meta(meta_cols, u),
                             ignore_index=True
                         )
                 else:
-                    user_input = media.get_meta(
-                        [media.id, "rating"], user["user_id"])
+                    user_input = media.get_meta(meta_cols, user["user_id"])
 
                 user_profile = self.learning_user_profile(
                     user, media.id, user_input)
@@ -162,7 +163,8 @@ class FromProfile(Engine):
         # we're going to turn each genre into weights. We can do this by using the input's reviews and multiplying them into the input's genre table and then summing up the resulting table by column.
 
         # Dot produt to get weights
-        user_profile = user_genre_table.transpose().dot(user_input['rating'])
+        user_profile = user_genre_table.transpose()\
+            .dot(user_input['rating'] + user_input['review_see_count'])
         user_profile = user_profile.astype("float32")
 
         # Take into account explicit user interests
