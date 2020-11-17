@@ -1,4 +1,4 @@
-from src.engines import Popularity, ContentSimilarities, FromProfile, FromSimilarContent
+from src.engines import Popularity, ContentSimilarities, CollaborativeFiltering, FromProfile, FromSimilarContent
 from src.engines.engine import Engine
 
 from threading import Thread
@@ -41,6 +41,13 @@ def start_popularity_engine(wait=True):
 
 def start_similarities_engine(wait=True):
     c = ContentSimilarities()
+    c.start()
+    if wait:
+        c.join()
+
+
+def start_collaborative_engine(wait=True):
+    c = CollaborativeFiltering()
     c.start()
     if wait:
         c.join()

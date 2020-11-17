@@ -1,4 +1,4 @@
-from .recommend import Recommend, RecommendUser, start_popularity_engine, start_similarities_engine, start_from_profile_engine, start_from_similar_content_engine, start_from_profile_engine_for_group, start_from_similar_content_engine_for_group
+from .recommend import Recommend, RecommendUser, start_popularity_engine, start_similarities_engine, start_collaborative_engine, start_from_profile_engine, start_from_similar_content_engine, start_from_profile_engine_for_group, start_from_similar_content_engine_for_group
 
 from flask import request, current_app, abort
 from flask_api import FlaskAPI
@@ -36,6 +36,13 @@ def popularity_train():
 @token_auth
 def content_similarities_train():
     start_similarities_engine(wait=False)
+    return {"started": True}, 202
+
+
+@app.route("/collaborative_filtering/train", methods=["PUT"])
+@token_auth
+def collaborative_filtering_train():
+    start_collaborative_engine(wait=False)
     return {"started": True}, 202
 
 
