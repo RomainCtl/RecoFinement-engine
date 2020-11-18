@@ -54,7 +54,7 @@ class CollaborativeFiltering(Engine):
                 continue
 
             modelGest = model.recommendForUserSubset(
-                sqlContext.createDataFrame(User.get()), self.max_nb_elem)
+                sqlContext.createDataFrame(user_df), self.max_nb_elem)
 
             len_values = 0
 
