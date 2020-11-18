@@ -1,4 +1,4 @@
-from src.content import User
+from src.content import User, Game, Serie, Movie
 from src.utils import db, sc
 from .engine import Engine
 
@@ -10,8 +10,8 @@ from pyspark.ml.recommendation import ALS
 
 import pandas as pd
 
-class CollaborativeFiltering(Engine):
 
+class CollaborativeFiltering(Engine):
     __engine_priority__ = 5
     max_nb_elem = 10
 
@@ -21,7 +21,7 @@ class CollaborativeFiltering(Engine):
 
             if media.tablename_media in [
                 Game.tablename_media,  # no ratings
-                Serie.tablename_media, # too much ratings
+                Serie.tablename_media,  # too much ratings
                 Movie.tablename_media  # too much ratings
             ]:
                 continue
@@ -47,7 +47,14 @@ class CollaborativeFiltering(Engine):
                       ratingCol="rating", coldStartStrategy="drop")
             model = als.fit(sparkDF)
 
-            modelGest = model.recommendForUserSubset(sqlContext.createDataFrame(User.get()), max_nb_elem)
+            user_df = User.get()
+
+            # Check if is empty
+            if user_df.shape[0] == 0:
+                continue
+
+            modelGest = model.recommendForUserSubset(
+                sqlContext.createDataFrame(User.get()), self.max_nb_elem)
 
             len_values = 0
 
@@ -57,7 +64,7 @@ class CollaborativeFiltering(Engine):
                     values.append(
                         {
                             "user_id": int(user.user_id),
-                            media.id: media.id_type( stringIndexerModel.labels[int(rating[itemIdName])] if media.tablename_media == "book" else rating[itemIdName]),
+                            media.id: media.id_type(stringIndexerModel.labels[int(rating[itemIdName])] if media.tablename_media == "book" else rating[itemIdName]),
                             # divide by 5 to get a score between 0 and 1
                             "score": float(rating.rating / 5),
                             "engine": self.__class__.__name__,
