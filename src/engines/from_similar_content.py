@@ -66,17 +66,27 @@ class FromSimilarContent(Engine):
                 self.media_df = self.media_df[(self.media_df["rating"] >= 3) | (
                     self.media_df["rating"] == 0)]
 
+                # Do not recommend already recommended content
+                already_recommended_media = []
+                with db as session:
+                    result = session.execute('SELECT %s FROM "%s" WHERE %s = \'%s\' AND engine <> \'%s\'' % (
+                        media.id, media.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__))
+                    already_recommended_media = [
+                        dict(row)[media.id] for row in result]
+
                 # Get list of similars content from already rate content
                 similars_df = pd.DataFrame(
                     columns=[media.id, "similar_"+media.id, "similarity", "popularity_score", "rating", "review_see_count"])
                 for index, m in self.media_df.iterrows():
                     d = media.get_similars(m[media.id])
-                    d["rating"] = m["rating"]
-                    d["review_see_count"] = m["review_see_count"]
-                    similars_df = similars_df.append(
-                        d,
-                        ignore_index=True,
-                    )
+                    d = d[~d[media.id].isin(already_recommended_media)]
+                    if d.shape[0] > 0:
+                        d["rating"] = m["rating"]
+                        d["review_see_count"] = m["review_see_count"]
+                        similars_df = similars_df.append(
+                            d,
+                            ignore_index=True,
+                        )
 
                 # Order this list by most popular and make a selection (max popularity_score is 5 (also = max rate), see popularity engine (IMDB formula))
                 similars_df["popularity_score"] = similars_df["popularity_score"].fillna(
