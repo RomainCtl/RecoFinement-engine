@@ -10,8 +10,8 @@ from pyspark.ml.recommendation import ALS
 
 import pandas as pd
 
-
 class CollaborativeFiltering(Engine):
+
     __engine_priority__ = 5
     max_nb_elem = 10
 
@@ -19,40 +19,45 @@ class CollaborativeFiltering(Engine):
         for media in self.__media__:
             st_time = datetime.utcnow()
 
+            if media.tablename_media in [
+                Game.tablename_media,  # no ratings
+                Serie.tablename_media, # too much ratings
+                Movie.tablename_media  # too much ratings
+            ]:
+                continue
+
             sqlContext = SQLContext(sc)
 
-            df = media.get_ratings()
+            df = media.get_meta(cols=['user_id', media.id, 'rating'])
 
+            # Convert Pandas DF to PySpark DF
             sparkDF = sqlContext.createDataFrame(df)
 
             itemIdName = media.id
 
+            # Create numerique id for each book string id
             if media.tablename_media == "book":
                 itemIdName = "isbn_id"
                 stringIndexer = StringIndexer(
                     inputCol="isbn", outputCol="isbn_id")
-                model = stringIndexer.fit(sparkDF)
-                sparkDF = model.transform(sparkDF)
+                stringIndexerModel = stringIndexer.fit(sparkDF)
+                sparkDF = stringIndexerModel.transform(sparkDF)
 
             als = ALS(userCol="user_id", itemCol=itemIdName,
                       ratingCol="rating", coldStartStrategy="drop")
             model = als.fit(sparkDF)
 
-            usersAsDF = User.get()
-            userList = [[u] for u in usersAsDF['user_id'].tolist()]
-
-            modelGest = model.recommendForUserSubset(
-                sqlContext.createDataFrame([userList], schema=['user_id']), max_nb_elem)
+            modelGest = model.recommendForUserSubset(sqlContext.createDataFrame(User.get()), max_nb_elem)
 
             len_values = 0
-            # TODO : process datas
+
             for user in modelGest.collect():
                 values = []
                 for rating in user.recommendations:
                     values.append(
                         {
                             "user_id": int(user.user_id),
-                            media.id: media.id_type(rating[itemIdName]),
+                            media.id: media.id_type( stringIndexerModel.labels[int(rating[itemIdName])] if media.tablename_media == "book" else rating[itemIdName]),
                             # divide by 5 to get a score between 0 and 1
                             "score": float(rating.rating / 5),
                             "engine": self.__class__.__name__,
