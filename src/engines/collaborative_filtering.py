@@ -59,12 +59,24 @@ class CollaborativeFiltering(Engine):
             len_values = 0
 
             for user in modelGest.collect():
+                # Do not recommend already recommended content
+                already_recommended_media = []
+                with db as session:
+                    result = session.execute('SELECT %s FROM "%s" WHERE user_id = \'%s\' AND engine <> \'%s\'' % (
+                        media.id, media.tablename_recommended, user.user_id, self.__class__.__name__))
+                    already_recommended_media = [
+                        dict(row)[media.id] for row in result]
+
                 values = []
                 for rating in user.recommendations:
+                    id = media.id_type(stringIndexerModel.labels[int(
+                        rating[itemIdName])] if media.tablename_media == "book" else rating[itemIdName])
+                    if id in already_recommended_media:
+                        continue
                     values.append(
                         {
                             "user_id": int(user.user_id),
-                            media.id: media.id_type(stringIndexerModel.labels[int(rating[itemIdName])] if media.tablename_media == "book" else rating[itemIdName]),
+                            media.id: id,
                             # divide by 5 to get a score between 0 and 1
                             "score": float(rating.rating / 5),
                             "engine": self.__class__.__name__,
@@ -79,11 +91,12 @@ class CollaborativeFiltering(Engine):
                     session.execute(text('DELETE FROM "%s" WHERE user_id = %s AND engine = \'%s\'' % (
                         media.tablename_recommended, user.user_id, self.__class__.__name__)))
 
-                    markers = ':user_id, :%s, :score, :engine, :engine_priority' % media.id
-                    ins = 'INSERT INTO {tablename} VALUES ({markers})'
-                    ins = ins.format(
-                        tablename=media.tablename_recommended, markers=markers)
-                    session.execute(ins, values)
+                    if len(values) > 0:
+                        markers = ':user_id, :%s, :score, :engine, :engine_priority' % media.id
+                        ins = 'INSERT INTO {tablename} VALUES ({markers})'
+                        ins = ins.format(
+                            tablename=media.tablename_recommended, markers=markers)
+                        session.execute(ins, values)
 
             self.logger.info("%s recommendation from collaborative filtering performed in %s (%s lines)" % (
                 media.uppername, datetime.utcnow()-st_time, len_values))

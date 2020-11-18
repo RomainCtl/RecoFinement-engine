@@ -101,6 +101,17 @@ class FromProfile(Engine):
                 recommendationTable_df = (
                     (genre_table*user_profile).sum(axis=1))/(user_profile.sum())
 
+                # Do not recommend already recommended content
+                already_recommended_media = []
+                with db as session:
+                    result = session.execute('SELECT %s FROM "%s" WHERE %s = \'%s\' AND engine <> \'%s\'' % (
+                        media.id, media.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__))
+                    already_recommended_media = [
+                        dict(row)[media.id] for row in result]
+
+                recommendationTable_df = recommendationTable_df[~recommendationTable_df.index.isin(
+                    already_recommended_media)]
+
                 # Sort our recommendations in descending order
                 recommendationTable_df = recommendationTable_df.sort_values(
                     ascending=False)
@@ -130,12 +141,13 @@ class FromProfile(Engine):
                     session.execute(
                         text('DELETE FROM "%s" WHERE %s = \'%s\' AND engine = \'%s\'' % (media.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__)))
 
-                    markers = ':%s, :%s, :score, :engine, :engine_priority' % (
-                        self.obj.id, media.id)
-                    ins = 'INSERT INTO {tablename} VALUES ({markers})'
-                    ins = ins.format(
-                        tablename=media.tablename_recommended + self.obj.recommended_ext, markers=markers)
-                    session.execute(ins, values)
+                    if len(values) > 0:
+                        markers = ':%s, :%s, :score, :engine, :engine_priority' % (
+                            self.obj.id, media.id)
+                        ins = 'INSERT INTO {tablename} VALUES ({markers})'
+                        ins = ins.format(
+                            tablename=media.tablename_recommended + self.obj.recommended_ext, markers=markers)
+                        session.execute(ins, values)
 
             self.logger.info("%s recommendation from user profile performed in %s (%s lines)" % (
                 media.uppername, datetime.utcnow()-st_time, len_values))
@@ -154,8 +166,13 @@ class FromProfile(Engine):
         users_medias = self.mediaWithGenres_df[self.mediaWithGenres_df[media_id].isin(
             user_input[media_id].tolist())]
 
+        # Filtering input if not in media
+        user_input = user_input[user_input[media_id].isin(
+            users_medias[media_id].tolist())]
+
         # Resetting the index to avoid future issues
         users_medias = users_medias.reset_index(drop=True)
+        user_input = user_input.reset_index(drop=True)
 
         # Dropping unnecessary issues due to save memory and to avoid issues
         user_genre_table = users_medias.drop([media_id], axis=1)
@@ -176,8 +193,6 @@ class FromProfile(Engine):
             user_interests, level=list(user_interests.keys()))
         user_profile = user_profile.apply(lambda x: 0.0 if x == 1 else x)
         user_profile = user_profile.astype("float32")
-
-        # NOTE take into account implicit user data ?
 
         # Now, we have the weights for every of the user's preferences.
         return user_profile
