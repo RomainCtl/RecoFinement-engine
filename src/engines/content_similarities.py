@@ -75,34 +75,3 @@ class ContentSimilarities(Engine):
 
             self.logger.info("%s similarity reloading performed in %s (%s lines)" %
                              (media.uppername, datetime.utcnow()-st_time, len(values)))
-
-    def get_recommendations(self, item_id, cosine_sim):
-        """Function that takes item id as input and outputs most similar items
-
-        Args:
-            item_id (int|str): item identifier (commonly int, but can be string).
-            cosine_sim (DataFrame): DataFrame that store cosine similarities between two iem.
-
-        Returns:
-            list: top 10 most similars items (list of tuple item_indice, similarity_score)
-        """
-        # Get the pairwsie similarity scores of all items with that item
-        sim_scores = list(enumerate(cosine_sim[item_id]))
-
-        # Sort the items based on the similarity scores
-        sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-
-        # Get the scores of the 10 most similar items
-        sim_scores = sim_scores[1:11]
-
-        # Delete similar item with score minus than 0.1
-        s = None
-        for i in range(len(sim_scores)):
-            if sim_scores[i][1] < 0.1:
-                s = i
-                break
-        if s is not None:
-            del sim_scores[s:11]
-
-        # Get the item indices
-        return sim_scores
