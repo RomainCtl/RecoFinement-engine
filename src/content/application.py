@@ -27,6 +27,7 @@ class Application:
         if "rating" in cols:
             app_df["rating"] = app_df["rating"].astype("float32")
         if "reviews" in cols:
+            app_df["reviews"] = app_df["reviews"].fillna(0)
             app_df["reviews"] = app_df["reviews"].astype("uint32")
         if "popularity_score" in cols:
             app_df["popularity_score"] = app_df["popularity_score"].astype(

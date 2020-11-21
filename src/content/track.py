@@ -26,6 +26,7 @@ class Track:
         if "rating" in cols:
             track_df["rating"] = track_df["rating"].astype("float32")
         if "rating_count" in cols:
+            track_df["rating_count"] = track_df["rating_count"].fillna(0)
             track_df["rating_count"] = track_df["rating_count"].astype(
                 "uint32")
         if "popularity_score" in cols:

@@ -30,6 +30,7 @@ class Serie:
         if "rating" in cols:
             serie_df["rating"] = serie_df["rating"].astype("float32")
         if "rating_count" in cols:
+            serie_df["rating_count"] = serie_df["rating_count"].fillna(0)
             serie_df["rating_count"] = serie_df["rating_count"].astype(
                 "uint32")
         if "popularity_score" in cols:

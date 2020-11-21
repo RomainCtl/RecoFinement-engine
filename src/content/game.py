@@ -24,8 +24,8 @@ class Game:
         if "rating" in cols:
             game_df["rating"] = game_df["rating"].astype("float32")
         if "rating_count" in cols:
-            game_df["rating_count"] = game_df["rating_count"].astype(
-                "uint32")
+            game_df["rating_count"] = game_df["rating_count"].fillna(0)
+            game_df["rating_count"] = game_df["rating_count"].astype("uint32")
         if "popularity_score" in cols:
             game_df["popularity_score"] = game_df["popularity_score"].astype(
                 "float32")

@@ -25,6 +25,7 @@ class Book:
         if "rating" in cols:
             book_df["rating"] = book_df["rating"].astype("float32")
         if "rating_count" in cols:
+            book_df["rating_count"] = book_df["rating_count"].fillna(0)
             book_df["rating_count"] = book_df["rating_count"].astype("uint32")
         if "popularity_score" in cols:
             book_df["popularity_score"] = book_df["popularity_score"].astype(

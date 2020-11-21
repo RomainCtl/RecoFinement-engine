@@ -32,6 +32,7 @@ class Movie:
         if "rating" in cols:
             movie_df["rating"] = movie_df["rating"].astype("float32")
         if "rating_count" in cols:
+            movie_df["rating_count"] = movie_df["rating_count"].fillna(0)
             movie_df["rating_count"] = movie_df["rating_count"].astype(
                 "uint32")
         if "popularity_score" in cols:
