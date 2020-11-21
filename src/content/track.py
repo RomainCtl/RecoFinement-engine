@@ -21,8 +21,6 @@ class Track:
         if "track_id" in cols:
             # currently we have only ~ 10_000 track
             track_df["track_id"] = track_df["track_id"].astype("uint16")
-        if "year" in cols:
-            track_df["year"] = track_df["year"].astype("uint16")
         if "rating" in cols:
             track_df["rating"] = track_df["rating"].astype("float32")
         if "rating_count" in cols:
