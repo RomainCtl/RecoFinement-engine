@@ -27,8 +27,6 @@ class Movie:
         # Reduce memory
         if "movie_id" in cols:
             movie_df["movie_id"] = movie_df["movie_id"].astype("uint32")
-        if "year" in cols:
-            movie_df["year"] = movie_df["year"].astype("uint16")
         if "rating" in cols:
             movie_df["rating"] = movie_df["rating"].astype("float32")
         if "rating_count" in cols:

@@ -86,6 +86,9 @@ class FromProfile(Engine):
                 else:
                     user_input = media.get_meta(meta_cols, user["user_id"])
 
+                if user_input.shape[0] == 0:
+                    continue
+
                 user_profile = self.learning_user_profile(
                     user, media.id, user_input)
 

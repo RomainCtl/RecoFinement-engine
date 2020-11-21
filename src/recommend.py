@@ -12,10 +12,9 @@ class Recommend(Engine):
         start_popularity_engine(wait=True)
         start_similarities_engine(wait=True)
 
-        start_from_similar_content_engine(
-            wait=True)  # from user top rating content
+        start_from_similar_content_engine(wait=True)
         start_from_profile_engine(wait=True)
-        # TODO Collaboratif filtering
+        start_collaborative_engine(wait=True)
 
         start_from_similar_content_engine_for_group(wait=True)
         start_from_profile_engine_for_group(wait=True)
