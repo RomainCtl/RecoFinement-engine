@@ -88,8 +88,9 @@ class FromSimilarContent(Engine):
                             ignore_index=True,
                         )
 
-                similars_df = similars_df.groupby([media.id, "similar_"+media.id]).agg(
-                    {"similarity": "max", "popularity_score": "max", "rating": "sum", "review_see_count": "sum"}).reset_index()
+                if similars_df.shape[0] > 0:
+                    similars_df = similars_df.groupby([media.id, "similar_"+media.id]).agg(
+                        {"similarity": "max", "popularity_score": "max", "rating": "sum", "review_see_count": "sum"}).reset_index()
 
                 # Order this list by most popular and make a selection (max popularity_score is 5 (also = max rate), see popularity engine (IMDB formula))
                 similars_df["popularity_score"] = similars_df["popularity_score"].fillna(

@@ -165,6 +165,8 @@ class FromProfile(Engine):
         Returns:
             Serie: user profile
         """
+        user_input = user_input.groupby([media_id]).sum().reset_index()
+
         # Filtering out the medias from the input
         users_medias = self.mediaWithGenres_df[self.mediaWithGenres_df[media_id].isin(
             user_input[media_id].tolist())]

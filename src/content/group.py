@@ -106,7 +106,7 @@ class Group:
                         df[
                             (df['group_id'] == row["group_id"]) &
                             (df['genres'] == g_row['name'])
-                        ]['count']
+                        ]['count'].sum()
                     )
                 else:
                     result.at[index, g_row['name']] = 1
