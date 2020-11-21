@@ -104,11 +104,14 @@ class FromSimilarContent(Engine):
                 similars_df["score"] = similars_df["score"] / \
                     (5 + similars_df["popularity_score"].max())
 
-                similars_df["score"] = similars_df["score"].apply(
-                    lambda x: 1 if x > 1 else x)
-
                 similars_df.drop(
                     columns=[media.id, "similarity", "popularity_score", "rating"], axis=1, inplace=True)
+
+                similars_df = similars_df.groupby(
+                    ["similar_"+media.id]).sum().reset_index()
+
+                similars_df["score"] = similars_df["score"].apply(
+                    lambda x: 1 if x > 1 else x)
 
                 # Store result
                 values = []
