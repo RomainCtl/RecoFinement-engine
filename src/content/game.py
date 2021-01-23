@@ -9,7 +9,6 @@ class Game(Content):
     content_type = ContentType.GAME
 
     def request_for_popularity(self):
-        print("CHILD %s" % self.content_type)
         self.df = pd.read_sql_query(
             'SELECT c.content_id, c.rating, c.rating_count, cc.recommendations FROM "%s" AS c INNER JOIN "%s" AS cc ON cc.content_id = c.content_id' % (self.tablename, str(self.content_type)), con=db.engine)
 
@@ -50,8 +49,7 @@ class Game(Content):
 
         return game_df
 
-    @classmethod
-    def get_with_genres(cls):
+    def get_with_genres(self):
         """Get game
 
         NOTE can add 't.rating' and 't.rating_count' column if we introduce popularity filter to content-based engine
@@ -60,13 +58,13 @@ class Game(Content):
         Returns:
             DataFrame: dataframe of game data
         """
-        game_df = pd.read_sql_query(
-            'SELECT t.game_id, t.name, t.short_description, t.developers, t.publishers, string_agg(g.name, \',\') AS genres FROM "game" AS t LEFT OUTER JOIN "game_genres" AS tg ON tg.game_id = t.game_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = tg.genre_id GROUP BY t.game_id', con=db.engine)
+        self.df = pd.read_sql_query(
+            'SELECT g.content_id, g.name, g.short_description, g.developers, g.publishers, string_agg(ge.name, \',\') AS genres FROM "%s" AS c INNER JOIN "%s" AS g ON g.content_id = c.content_id LEFT OUTER JOIN "content_genres" AS cg ON cg.content_id = c.content_id LEFT OUTER JOIN "genre" AS ge ON ge.genre_id = cg.genre_id GROUP BY g.content_id' % (self.tablename, self.content_type), con=db.engine)
 
         # Reduce memory
-        game_df = cls.reduce_memory(game_df)
+        self.reduce_memory()
 
-        return game_df
+        return self.df
 
     @staticmethod
     def prepare_from_user_profile(game_df):
@@ -101,16 +99,13 @@ class Game(Content):
 
         return gameWithGenres_df
 
-    @staticmethod
-    def prepare_sim(game_df):
+    def prepare_sim(self):
         """Prepare game data for content similarity process
-
-        Args:
-            game_df (DataFrame): game dataframe
 
         Returns:
             DataFrame: result dataframe
         """
+        game_df = self.get_with_genres()
         # Transform genres str to list
         game_df["genres"] = game_df["genres"].apply(
             lambda x: str(x).split(","))

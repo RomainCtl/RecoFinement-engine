@@ -9,7 +9,6 @@ class Serie(Content):
     content_type = ContentType.SERIE
 
     def request_for_popularity(self):
-        print("CHILD %s" % self.content_type)
         return super().request_for_popularity(self.content_type)
 
     @classmethod
@@ -39,8 +38,7 @@ class Serie(Content):
 
         return serie_df
 
-    @classmethod
-    def get_with_genres(cls):
+    def get_with_genres(self):
         """Get serie
 
         NOTE can add 't.rating' and 't.rating_count' column if we introduce popularity filter to content-based engine
@@ -49,13 +47,13 @@ class Serie(Content):
         Returns:
             DataFrame: dataframe of serie data
         """
-        serie_df = pd.read_sql_query(
-            'SELECT t.serie_id, t.title, t.start_year, t.writers, t.directors, t.actors, string_agg(g.name, \',\') AS genres FROM "serie" AS t LEFT OUTER JOIN "serie_genres" AS tg ON tg.serie_id = t.serie_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = tg.genre_id GROUP BY t.serie_id', con=db.engine)
+        self.df = pd.read_sql_query(
+            'SELECT t.content_id, t.title, t.start_year, t.writers, t.directors, t.actors, string_agg(ge.name, \',\') AS genres FROM "%s" AS c INNER JOIN "%s" AS t ON t.content_id = c.content_id LEFT OUTER JOIN "content_genres" AS cg ON cg.content_id = c.content_id LEFT OUTER JOIN "genre" AS ge ON ge.genre_id = cg.genre_id GROUP BY t.content_id' % (self.tablename, self.content_type), con=db.engine)
 
         # Reduce memory
-        serie_df = cls.reduce_memory(serie_df)
+        self.reduce_memory()
 
-        return serie_df
+        return self.df
 
     @staticmethod
     def prepare_from_user_profile(serie_df):
@@ -90,16 +88,13 @@ class Serie(Content):
 
         return serieWithGenres_df
 
-    @staticmethod
-    def prepare_sim(serie_df):
+    def prepare_sim(self):
         """Prepare serie data for content similarity process
-
-        Args:
-            serie_df (DataFrame): serie dataframe
 
         Returns:
             DataFrame: result dataframe
         """
+        serie_df = self.get_with_genres()
         # Remove '0' from year
         serie_df["start_year"] = serie_df["start_year"].astype(str)
         serie_df["start_year"] = serie_df["start_year"].replace('0', '')

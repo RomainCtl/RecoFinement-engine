@@ -9,7 +9,6 @@ class Book(Content):
     content_type = ContentType.BOOK
 
     def request_for_popularity(self):
-        print("CHILD %s" % self.content_type)
         return super().request_for_popularity(self.content_type)
 
     @classmethod
@@ -38,8 +37,7 @@ class Book(Content):
 
         return book_df
 
-    @classmethod
-    def get_with_genres(cls):
+    def get_with_genres(self):
         """Get book
 
         NOTE can add 't.rating' and 't.rating_count' column if we introduce popularity filter to content-based engine
@@ -50,24 +48,21 @@ class Book(Content):
         Returns:
             DataFrame: dataframe of track data
         """
-        book_df = pd.read_sql_query(
-            'SELECT b.isbn, b.title, b.author, b.year_of_publication, b.publisher FROM "book" AS b', con=db.engine)
+        self.df = pd.read_sql_query(
+            'SELECT b.content_id, b.title, b.author, b.year_of_publication, b.publisher FROM "book" AS b', con=db.engine)
 
         # Reduce memory
-        book_df = cls.reduce_memory(book_df)
+        self.reduce_memory()
 
-        return book_df
+        return self.df
 
-    @staticmethod
-    def prepare_sim(book_df):
+    def prepare_sim(self):
         """Prepare book data for content similarity process
-
-        Args:
-            book_df (DataFrame): Book dataframe
 
         Returns:
             DataFrame: result dataframe
         """
+        book_df = self.get_with_genres()
         # remove '0' from year
         book_df["year_of_publication"] = book_df["year_of_publication"].astype(
             str)

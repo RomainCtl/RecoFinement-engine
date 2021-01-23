@@ -100,7 +100,6 @@ class Content:
         return self._reduce_metadata_memory(df)
 
     def request_for_popularity(self, content_type=None):
-        print("PARENT %s " % str(content_type))
         # Can be overrided by child class
         assert content_type is None or isinstance(
             content_type, ContentType), "content_type must be 'ContentType' instance or None"
@@ -183,3 +182,31 @@ class Content:
         q_df = q_df.drop(['rating', 'rating_count'], 1)
 
         return q_df.head(size)
+
+    def get_with_genres(self):
+        raise Exception("'get_with_genres' function must be created")
+
+    def prepare_sim(self):
+        raise Exception("'prepare_sim' function must be created")
+
+    # def get_similars(self, content_id, same_type=True):
+    #     """Get all similars content of a content
+
+    #     Args:
+    #         content_id (int): content unique id
+
+    #     Returns:
+    #         Dataframe: similars content dataframe
+    #     """
+    #     filt = ""
+    #     if same_type:
+    #         filt = "AND s.content_type0 = s.content_type1"
+
+    #     self.df = pd.read_sql_query(
+    #         'SELECT s.content_id0 AS content_id, s.content_id1 AS similar_content_id FROM %s AS s INNER JOIN "%s" AS c ON c.content_id = s.content_id1 WHERE s.content_id0 = "%s"' % (self.tablename_similars, self.tablename, content_id), con=db.engine)
+    #     # app_df = pd.read_sql_query(
+    #     #     'SELECT sa.app_id0 AS app_id, sa.app_id1 AS similar_app_id, sa.similarity, a.popularity_score FROM "similars_application" AS sa INNER JOIN "application" AS a ON a.app_id = sa.app_id1 WHERE app_id0 = \'%s\'' % app_id, con=db.engine)
+
+    #     self.reduce_memory()
+
+    #     return self.df

@@ -9,7 +9,6 @@ class Track(Content):
     content_type = ContentType.TRACK
 
     def request_for_popularity(self):
-        print("CHILD %s" % self.content_type)
         return super().request_for_popularity(self.content_type)
 
     def calc_popularity_score(self, df):
@@ -58,8 +57,7 @@ class Track(Content):
 
         return track_df
 
-    @classmethod
-    def get_with_genres(cls):
+    def get_with_genres(self):
         """Get track
 
         NOTE can add 't.rating' and 't.rating_count' column if we introduce popularity filter to content-based engine
@@ -68,13 +66,13 @@ class Track(Content):
         Returns:
             DataFrame: dataframe of track data
         """
-        track_df = pd.read_sql_query(
-            'SELECT t.track_id, t.title, t.year, t.artist_name, t.release, string_agg(g.name, \',\') AS genres FROM "track" AS t LEFT OUTER JOIN "track_genres" AS tg ON tg.track_id = t.track_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = tg.genre_id GROUP BY t.track_id', con=db.engine)
+        self.df = pd.read_sql_query(
+            'SELECT t.content_id, t.title, t.year, t.artist_name, t.release, string_agg(ge.name, \',\') AS genres FROM "%s" AS c INNER JOIN "%s" AS t ON t.content_id = c.content_id LEFT OUTER JOIN "content_genres" AS cg ON cg.content_id = c.content_id LEFT OUTER JOIN "genre" AS ge ON ge.genre_id = cg.genre_id GROUP BY t.content_id' % (self.tablename, self.content_type), con=db.engine)
 
         # Reduce memory
-        track_df = cls.reduce_memory(track_df)
+        self.reduce_memory()
 
-        return track_df
+        return self.df
 
     @staticmethod
     def prepare_from_user_profile(track_df):
@@ -109,16 +107,13 @@ class Track(Content):
 
         return trackWithGenres_df
 
-    @staticmethod
-    def prepare_sim(track_df):
+    def prepare_sim(self):
         """Prepare track data for content similarity process
-
-        Args:
-            track_df (DataFrame): Track dataframe
 
         Returns:
             DataFrame: result dataframe
         """
+        track_df = self.get_with_genres()
         # Transform genres str to list
         track_df["genres"] = track_df["genres"].apply(
             lambda x: str(x).split(","))

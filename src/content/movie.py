@@ -9,7 +9,6 @@ class Movie(Content):
     content_type = ContentType.MOVIE
 
     def request_for_popularity(self):
-        print("CHILD %s" % self.content_type)
         return super().request_for_popularity(self.content_type)
 
     @classmethod
@@ -39,8 +38,7 @@ class Movie(Content):
 
         return movie_df
 
-    @classmethod
-    def get_with_genres(cls):
+    def get_with_genres(self):
         """Get movie
 
         NOTE can add 't.rating' and 't.rating_count' column if we introduce popularity filter to content-based engine
@@ -49,13 +47,13 @@ class Movie(Content):
         Returns:
             DataFrame: dataframe of movie data
         """
-        movie_df = pd.read_sql_query(
-            'SELECT t.movie_id, t.title, t.language, t.actors, t.year, t.producers, t.director, t.writer, string_agg(g.name, \',\') AS genres FROM "movie" AS t LEFT OUTER JOIN "movie_genres" AS tg ON tg.movie_id = t.movie_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = tg.genre_id GROUP BY t.movie_id', con=db.engine)
+        self.df = pd.read_sql_query(
+            'SELECT t.content_id, t.title, t.language, t.actors, t.year, t.producers, t.director, t.writer, string_agg(ge.name, \',\') AS genres FROM "%s" AS c INNER JOIN "%s" AS t ON t.content_id = c.content_id LEFT OUTER JOIN "content_genres" AS cg ON cg.content_id = c.content_id LEFT OUTER JOIN "genre" AS ge ON ge.genre_id = cg.genre_id GROUP BY t.content_id' % (self.tablename, self.content_type), con=db.engine)
 
         # Reduce memory
-        movie_df = cls.reduce_memory(movie_df)
+        self.reduce_memory()
 
-        return movie_df
+        return self.df
 
     @staticmethod
     def prepare_from_user_profile(movie_df):
@@ -90,16 +88,13 @@ class Movie(Content):
 
         return movieWithGenres_df
 
-    @staticmethod
-    def prepare_sim(movie_df):
+    def prepare_sim(self):
         """Prepare movie data for content similarity process
-
-        Args:
-            movie_df (DataFrame): movie dataframe
 
         Returns:
             DataFrame: result dataframe
         """
+        movie_df = self.get_with_genres()
         # Remove '0' from year
         movie_df["year"] = movie_df["year"].astype(str)
         movie_df["year"] = movie_df["year"].replace('0', '')

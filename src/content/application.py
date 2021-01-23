@@ -9,7 +9,6 @@ class Application(Content):
     content_type = ContentType.APPLICATION
 
     def request_for_popularity(self):
-        print("CHILD %s" % self.content_type)
         return super().request_for_popularity(self.content_type)
 
     def calc_popularity_score(self, df):
@@ -53,8 +52,7 @@ class Application(Content):
 
         return app_df
 
-    @classmethod
-    def get_with_genres(cls):
+    def get_with_genres(self):
         """Get application
 
         NOTE can add 't.rating' and 't.reviews as rating_count' column if we introduce popularity filter to content-based engine
@@ -63,13 +61,13 @@ class Application(Content):
         Returns:
             DataFrame: dataframe of application data
         """
-        app_df = pd.read_sql_query(
-            'SELECT t.app_id, t.name, t.type, t.content_rating, g.name AS genres FROM "application" AS t LEFT OUTER JOIN "genre" AS g ON g.genre_id = t.genre_id', con=db.engine)
+        self.df = pd.read_sql_query(
+            'SELECT c.content_id, t.name, t.type, t.content_rating, ge.name AS genres FROM "%s" AS c INNER JOIN "%s" AS t ON t.content_id = c.content_id LEFT OUTER JOIN "content_genres" AS cg ON cg.content_id = c.content_id LEFT OUTER JOIN "genre" AS ge ON ge.genre_id = cg.genre_id' % (self.tablename, self.content_type), con=db.engine)
 
         # Reduce memory
-        app_df = cls.reduce_memory(app_df)
+        self.reduce_memory()
 
-        return app_df
+        return self.df
 
     @staticmethod
     def prepare_from_user_profile(app_df):
@@ -103,16 +101,13 @@ class Application(Content):
 
         return appWithGenres_df
 
-    @staticmethod
-    def prepare_sim(app_df):
+    def prepare_sim(self):
         """Prepare application data for content similarity process
-
-        Args:
-            app_df (DataFrame): Application dataframe
 
         Returns:
             DataFrame: result dataframe
         """
+        app_df = self.get_with_genres()
         # Replace NaN with an empty string
         features = ['name', 'type', 'content_rating', 'genres']
         for feature in features:
