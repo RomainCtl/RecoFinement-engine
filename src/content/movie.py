@@ -1,91 +1,16 @@
 from src.utils import db, clean_data, create_soup
+from .content import Content, ContentType
+
 import pandas as pd
 import numpy as np
 
 
-class Movie:
-    __meta_cols__ = ["user_id", "movie_id",
-                     "rating", "watch_count", "review_see_count"]
+class Movie(Content):
+    content_type = ContentType.MOVIE
 
-    id = "movie_id"
-    id_type = int
-    tablename_recommended = "recommended_movie"
-    tablename_similars = "similars_movie"
-    tablename_media = "movie"
-    uppername = tablename_media.upper()
-
-    @staticmethod
-    def reduce_memory(movie_df):
-        cols = list(movie_df.columns)
-
-        # Replace all 'unknown' value by nan
-        movie_df = movie_df.replace("unknown", np.nan)
-
-        if "year" in cols:
-            movie_df["year"] = movie_df["year"].fillna(0)
-
-        # Reduce memory
-        if "movie_id" in cols:
-            movie_df["movie_id"] = movie_df["movie_id"].astype("uint32")
-        if "rating" in cols:
-            movie_df["rating"] = movie_df["rating"].astype("float32")
-        if "rating_count" in cols:
-            movie_df["rating_count"] = movie_df["rating_count"].fillna(0)
-            movie_df["rating_count"] = movie_df["rating_count"].astype(
-                "uint32")
-        if "popularity_score" in cols:
-            movie_df["popularity_score"] = movie_df["popularity_score"].astype(
-                "float32")
-
-        return movie_df
-
-    @classmethod
-    def get_meta(cls, cols=None, user_id=None):
-        """Get user metamovie metadata
-
-        Returns:
-            DataFrame: pandas DataFrame
-        """
-        if cols is None:
-            cols = cls.__meta_cols__
-        assert all([x in cls.__meta_cols__ for x in cols])
-
-        filt = ''
-        if user_id is not None:
-            filt = "WHERE user_id = '%s'" % user_id
-
-        df = pd.read_sql_query('SELECT %s FROM "meta_user_movie" %s' % (
-            ', '.join(cols), filt), con=db.engine)
-
-        # Reduce memory usage for ratings
-        if 'user_id' in cols:
-            df['user_id'] = df['user_id'].astype("uint32")
-        if 'movie_id' in cols:
-            df['movie_id'] = df['movie_id'].astype("uint16")
-        if 'rating' in cols:
-            df['rating'] = df['rating'].fillna(0)
-            df['rating'] = df['rating'].astype("uint8")
-        if 'watch_count' in cols:
-            df['watch_count'] = df['watch_count'].astype("uint16")
-        if 'review_see_count' in cols:
-            df['review_see_count'] = df['review_see_count'].astype("uint16")
-
-        return df
-
-    @classmethod
-    def get_ratings(cls):
-        """Get all movies and their metadata
-
-        Returns:
-            DataFrame: movie dataframe
-        """
-        movie_df = pd.read_sql_query(
-            'SELECT movie_id, rating, rating_count FROM "movie"', con=db.engine)
-
-        # Reduce memory
-        movie_df = cls.reduce_memory(movie_df)
-
-        return movie_df
+    def request_for_popularity(self):
+        print("CHILD %s" % self.content_type)
+        return super().request_for_popularity(self.content_type)
 
     @classmethod
     def get_similars(cls, movie_id):

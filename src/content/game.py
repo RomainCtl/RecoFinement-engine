@@ -1,85 +1,27 @@
 from src.utils import db, clean_data, create_soup
+from .content import Content, ContentType
+
 import pandas as pd
 import numpy as np
 
 
-class Game:
-    __meta_cols__ = ["user_id", "game_id", "purchase",
-                     "hours", "rating", "review_see_count"]
+class Game(Content):
+    content_type = ContentType.GAME
 
-    id = "game_id"
-    id_type = int
-    tablename_recommended = "recommended_game"
-    tablename_similars = "similars_game"
-    tablename_media = "game"
-    uppername = tablename_media.upper()
+    def request_for_popularity(self):
+        print("CHILD %s" % self.content_type)
+        self.df = pd.read_sql_query(
+            'SELECT c.content_id, c.rating, c.rating_count, cc.recommendations FROM "%s" AS c INNER JOIN "%s" AS cc ON cc.content_id = c.content_id' % (self.tablename, str(self.content_type)), con=db.engine)
 
-    @staticmethod
-    def reduce_memory(game_df):
-        cols = list(game_df.columns)
+        self.reduce_memory()
 
-        # Reduce memory
-        if "game_id" in cols:
-            game_df["game_id"] = game_df["game_id"].astype("uint16")
-        if "rating" in cols:
-            game_df["rating"] = game_df["rating"].astype("float32")
-        if "rating_count" in cols:
-            game_df["rating_count"] = game_df["rating_count"].fillna(0)
-            game_df["rating_count"] = game_df["rating_count"].astype("uint32")
-        if "popularity_score" in cols:
-            game_df["popularity_score"] = game_df["popularity_score"].astype(
-                "float32")
-        if "recommendations" in cols:
-            game_df["recommendations"] = game_df["recommendations"].astype(
-                "uint32")
-        if "steamid" in cols:
-            game_df["steamid"] = game_df["steamid"].astype(
-                "uint32")
+        return self.df
 
-        return game_df
-
-    @classmethod
-    def get_meta(cls, cols=None, user_id=None):
-        if cols is None:
-            cols = cls.__meta_cols__
-        assert all([x in cls.__meta_cols__ for x in cols])
-
-        filt = ''
-        if user_id is not None:
-            filt = "WHERE user_id = '%s'" % user_id
-
-        df = pd.read_sql_query('SELECT %s FROM "meta_user_game" %s' % (
-            ', '.join(cols), filt), con=db.engine)
-
-        # Reduce memory usage for ratings
-        if 'user_id' in cols:
-            df['user_id'] = df['user_id'].astype("uint32")
-        if 'game_id' in cols:
-            df['game_id'] = df['game_id'].astype("uint16")
-        if 'rating' in cols:
-            df['rating'] = df['rating'].fillna(0)
-            df['rating'] = df['rating'].astype("uint8")
-        if 'hours' in cols:
-            df['hours'] = df['hours'].astype("uint16")
-        if 'review_see_count' in cols:
-            df['review_see_count'] = df['review_see_count'].astype("uint16")
+    def calc_popularity_score(self, df):
+        # NOTE we do not have any rating for game (cold start), so we use 'recommendations' field instead of 'popularity_score' that is computed by 'reco_engine' service
+        df['popularity_score'] = df['recommendations']
 
         return df
-
-    @classmethod
-    def get_ratings(cls):
-        """Get all games and their metadata
-
-        Returns:
-            DataFrame: game dataframe
-        """
-        game_df = pd.read_sql_query(
-            'SELECT game_id, rating, rating_count FROM "game"', con=db.engine)
-
-        # Reduce memory
-        game_df = cls.reduce_memory(game_df)
-
-        return game_df
 
     @classmethod
     def get_similars(cls, game_id):

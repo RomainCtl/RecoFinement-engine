@@ -1,92 +1,16 @@
 from src.utils import db, clean_data, create_soup
+from .content import Content, ContentType
+
 import pandas as pd
 import numpy as np
 
 
-class Serie:
-    __meta_cols__ = ["user_id", "serie_id", "rating",
-                     "num_watched_episodes", "review_see_count"]
+class Serie(Content):
+    content_type = ContentType.SERIE
 
-    id = "serie_id"
-    id_type = int
-    tablename_recommended = "recommended_serie"
-    tablename_similars = "similars_serie"
-    tablename_media = "serie"
-    uppername = tablename_media.upper()
-
-    @staticmethod
-    def reduce_memory(serie_df):
-        cols = list(serie_df.columns)
-
-        # Reduce memory
-        if "serie_id" in cols:
-            serie_df["serie_id"] = serie_df["serie_id"].astype("uint32")
-        if "start_year" in cols:
-            serie_df["start_year"] = serie_df["start_year"].replace(np.nan, 0)
-            serie_df["start_year"] = serie_df["start_year"].astype("uint16")
-        if "end_year" in cols:
-            serie_df["end_year"] = serie_df["end_year"].replace(np.nan, 0)
-            serie_df["end_year"] = serie_df["end_year"].astype("uint16")
-        if "rating" in cols:
-            serie_df["rating"] = serie_df["rating"].astype("float32")
-        if "rating_count" in cols:
-            serie_df["rating_count"] = serie_df["rating_count"].fillna(0)
-            serie_df["rating_count"] = serie_df["rating_count"].astype(
-                "uint32")
-        if "popularity_score" in cols:
-            serie_df["popularity_score"] = serie_df["popularity_score"].astype(
-                "float32")
-
-        return serie_df
-
-    @classmethod
-    def get_meta(cls, cols=None, user_id=None):
-        """Get user metaserie metadata
-
-        Returns:
-            DataFrame: pandas DataFrame
-        """
-        if cols is None:
-            cols = cls.__meta_cols__
-        assert all([x in cls.__meta_cols__ for x in cols])
-
-        filt = ''
-        if user_id is not None:
-            filt = "WHERE user_id = '%s'" % user_id
-
-        df = pd.read_sql_query('SELECT %s FROM "meta_user_serie" %s' % (
-            ', '.join(cols), filt), con=db.engine)
-
-        # Reduce memory usage for ratings
-        if 'user_id' in cols:
-            df['user_id'] = df['user_id'].astype("uint32")
-        if 'serie_id' in cols:
-            df['serie_id'] = df['serie_id'].astype("uint16")
-        if 'rating' in cols:
-            df['rating'] = df['rating'].fillna(0)
-            df['rating'] = df['rating'].astype("uint8")
-        if 'num_watched_episodes' in cols:
-            df['num_watched_episodes'] = df['num_watched_episodes'].astype(
-                "uint16")
-        if 'review_see_count' in cols:
-            df['review_see_count'] = df['review_see_count'].astype("uint16")
-
-        return df
-
-    @classmethod
-    def get_ratings(cls):
-        """Get all series and their metadata
-
-        Returns:
-            DataFrame: serie dataframe
-        """
-        serie_df = pd.read_sql_query(
-            'SELECT serie_id, rating, rating_count FROM "serie"', con=db.engine)
-
-        # Reduce memory
-        serie_df = cls.reduce_memory(serie_df)
-
-        return serie_df
+    def request_for_popularity(self):
+        print("CHILD %s" % self.content_type)
+        return super().request_for_popularity(self.content_type)
 
     @classmethod
     def get_similars(cls, serie_id):

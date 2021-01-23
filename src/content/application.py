@@ -1,84 +1,30 @@
 from src.utils import db, clean_data, create_soup
+from .content import Content, ContentType
 
 import pandas as pd
 import numpy as np
 
 
-class Application:
-    __meta_cols__ = ["user_id", "app_id", "review", "popularity",
-                     "subjectivity", "rating", "review_see_count", "downloaded"]
+class Application(Content):
+    content_type = ContentType.APPLICATION
 
-    id = "app_id"
-    id_type = int
-    tablename_recommended = "recommended_application"
-    tablename_similars = "similars_application"
-    tablename_media = "application"
-    uppername = tablename_media.upper()
+    def request_for_popularity(self):
+        print("CHILD %s" % self.content_type)
+        return super().request_for_popularity(self.content_type)
 
-    @staticmethod
-    def reduce_memory(app_df):
-        cols = list(app_df.columns)
+    def calc_popularity_score(self, df):
+        # NOTE IMDB measure of popularity does not seem to be relevant for this media.
 
-        # Reduce memory
-        if "app_id" in cols:
-            app_df["app_id"] = app_df["app_id"].astype("uint16")
-        if "genre_id" in cols:
-            app_df["genre_id"] = app_df["genre_id"].astype("uint8")
-        if "rating" in cols:
-            app_df["rating"] = app_df["rating"].astype("float32")
-        if "reviews" in cols:
-            app_df["reviews"] = app_df["reviews"].fillna(0)
-            app_df["reviews"] = app_df["reviews"].astype("uint32")
-        if "popularity_score" in cols:
-            app_df["popularity_score"] = app_df["popularity_score"].astype(
-                "float32")
+        # Calculate the minimum number of votes required to be in the chart
+        m = df["rating_count"].quantile(0.90)
 
-        return app_df
+        # Filter out all qualified media into a new DataFrame
+        q_df = df.copy().loc[df['rating_count'] >= m]
 
-    @classmethod
-    def get_meta(cls, cols=None, user_id=None):
-        if cols is None:
-            cols = cls.__meta_cols__
-        assert all([x in cls.__meta_cols__ for x in cols])
+        q_df['popularity_score'] = q_df.apply(
+            lambda x: float(format(x["rating_count"] + x["rating"], ".4f")), axis=1, result_type="reduce")
 
-        filt = ''
-        if user_id is not None:
-            filt = "WHERE user_id = '%s'" % user_id
-
-        df = pd.read_sql_query('SELECT %s FROM "meta_user_application" %s' % (
-            ', '.join(cols), filt), con=db.engine)
-
-        # Reduce memory usage for ratings
-        if 'user_id' in cols:
-            df['user_id'] = df['user_id'].astype("uint32")
-        if 'app_id' in cols:
-            df['app_id'] = df['app_id'].astype("uint16")
-        if 'rating' in cols:
-            df['rating'] = df['rating'].fillna(0)
-            df['rating'] = df['rating'].astype("uint8")
-        if 'review_see_count' in cols:
-            df['review_see_count'] = df['review_see_count'].astype("uint16")
-        if 'popularity' in cols:
-            df['popularity'] = df['popularity'].astype("float2")
-        if 'subjectivity' in cols:
-            df['subjectivity'] = df['subjectivity'].astype("float32")
-
-        return df
-
-    @classmethod
-    def get_ratings(cls):
-        """Get all application and their metadata
-
-        Returns:
-            DataFrame: application dataframe
-        """
-        app_df = pd.read_sql_query(
-            'SELECT app_id, rating, reviews as rating_count FROM "application"', con=db.engine)
-
-        # Reduce memory
-        app_df = cls.reduce_memory(app_df)
-
-        return app_df
+        return q_df
 
     @classmethod
     def get_similars(cls, app_id):
