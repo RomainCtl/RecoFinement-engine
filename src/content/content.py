@@ -96,8 +96,8 @@ class Content:
             assert limit > 0, "Limit must be greater than 0"
             limit_filt = "LIMIT %s" % limit
 
-        df = pd.read_sql_query('SELECT %s FROM "%s" %s %s' % (
-            ', '.join(cols), self.tablename_meta, user_filt, limit_filt), con=db.engine)
+        df = pd.read_sql_query('SELECT %s FROM "%s" AS m INNER JOIN "%s" AS c ON c.content_id = m.content_id INNER JOIN "%s" AS ct ON ct.content_id = c.content_id %s %s' % (
+            'm.'+', m.'.join(cols), self.tablename_meta, self.tablename, self.content_type, user_filt, limit_filt), con=db.engine)
 
         return self._reduce_metadata_memory(df)
 

@@ -1,4 +1,4 @@
-from src.content import User, Game, Serie, Movie
+from src.content import User, ContentType
 from src.utils import db, sc
 from .engine import Engine
 
@@ -18,32 +18,23 @@ class CollaborativeFiltering(Engine):
     def train(self):
         for media in self.__media__:
             st_time = datetime.utcnow()
+            m = media(logger=self.logger)
 
-            if media.tablename_media in [
-                Game.tablename_media,  # no ratings
-                Serie.tablename_media,  # too much ratings
-                Movie.tablename_media  # too much ratings
+            if m.content_type in [
+                ContentType.GAME,  # no ratings
+                ContentType.SERIE,  # too much ratings
+                ContentType.MOVIE  # too much ratings
             ]:
                 continue
 
             sqlContext = SQLContext(sc)
 
-            df = media.get_meta(cols=['user_id', media.id, 'rating'])
+            df = m.get_meta(cols=['user_id', m.id, 'rating'])
 
             # Convert Pandas DF to PySpark DF
             sparkDF = sqlContext.createDataFrame(df)
 
-            itemIdName = media.id
-
-            # Create numerique id for each book string id
-            if media.tablename_media == "book":
-                itemIdName = "isbn_id"
-                stringIndexer = StringIndexer(
-                    inputCol="isbn", outputCol="isbn_id")
-                stringIndexerModel = stringIndexer.fit(sparkDF)
-                sparkDF = stringIndexerModel.transform(sparkDF)
-
-            als = ALS(userCol="user_id", itemCol=itemIdName,
+            als = ALS(userCol="user_id", itemCol=m.id,
                       ratingCol="rating", coldStartStrategy="drop")
             model = als.fit(sparkDF)
 
@@ -63,20 +54,19 @@ class CollaborativeFiltering(Engine):
                 already_recommended_media = []
                 with db as session:
                     result = session.execute('SELECT %s FROM "%s" WHERE user_id = \'%s\' AND engine <> \'%s\'' % (
-                        media.id, media.tablename_recommended, user.user_id, self.__class__.__name__))
+                        m.id, m.tablename_recommended, user.user_id, self.__class__.__name__))
                     already_recommended_media = [
-                        dict(row)[media.id] for row in result]
+                        dict(row)[m.id] for row in result]
 
                 values = []
                 for rating in user.recommendations:
-                    id = media.id_type(stringIndexerModel.labels[int(
-                        rating[itemIdName])] if media.tablename_media == "book" else rating[itemIdName])
+                    id = int(rating[m.id])
                     if id in already_recommended_media:
                         continue
                     values.append(
                         {
                             "user_id": int(user.user_id),
-                            media.id: id,
+                            m.id: id,
                             # divide by 5 to get a score between 0 and 1
                             "score": float(rating.rating / 5),
                             "engine": self.__class__.__name__,
@@ -89,14 +79,14 @@ class CollaborativeFiltering(Engine):
                 with db as session:
                     # Reset list of recommended `media` for this engine
                     session.execute(text('DELETE FROM "%s" WHERE user_id = %s AND engine = \'%s\'' % (
-                        media.tablename_recommended, user.user_id, self.__class__.__name__)))
+                        m.tablename_recommended, user.user_id, self.__class__.__name__)))
 
                     if len(values) > 0:
-                        markers = ':user_id, :%s, :score, :engine, :engine_priority' % media.id
+                        markers = ':user_id, :%s, :score, :engine, :engine_priority' % m.id
                         ins = 'INSERT INTO {tablename} VALUES ({markers})'
                         ins = ins.format(
-                            tablename=media.tablename_recommended, markers=markers)
+                            tablename=m.tablename_recommended, markers=markers)
                         session.execute(ins, values)
 
             self.logger.info("%s recommendation from collaborative filtering performed in %s (%s lines)" % (
-                media.uppername, datetime.utcnow()-st_time, len_values))
+                m.content_type, datetime.utcnow()-st_time, len_values))
