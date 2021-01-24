@@ -26,23 +26,6 @@ class Application(Content):
         return q_df
 
     @classmethod
-    def get_similars(cls, app_id):
-        """Get all similars content of an app
-
-        Args:
-            app_id (int): app unique id
-
-        Returns:
-            Dataframe: similars application dataframe
-        """
-        app_df = pd.read_sql_query(
-            'SELECT sa.app_id0 AS app_id, sa.app_id1 AS similar_app_id, sa.similarity, a.popularity_score FROM "similars_application" AS sa INNER JOIN "application" AS a ON a.app_id = sa.app_id1 WHERE app_id0 = \'%s\'' % app_id, con=db.engine)
-
-        app_df = cls.reduce_memory(app_df)
-
-        return app_df
-
-    @classmethod
     def get_for_profile(cls):
         app_df = pd.read_sql_query(
             'SELECT a.app_id, g.content_type || g.name AS genres FROM "application" AS a LEFT OUTER JOIN "genre" AS g ON g.genre_id = a.genre_id', con=db.engine)

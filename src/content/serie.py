@@ -12,23 +12,6 @@ class Serie(Content):
         return super().request_for_popularity(self.content_type)
 
     @classmethod
-    def get_similars(cls, serie_id):
-        """Get all similars content of a serie
-
-        Args:
-            serie_id (int): serie unique id
-
-        Returns:
-            Dataframe: similars serie dataframe
-        """
-        serie_df = pd.read_sql_query(
-            'SELECT ss.serie_id0 as serie_id, ss.serie_id1 as similar_serie_id, ss.similarity, s.popularity_score FROM "similars_serie" AS ss INNER JOIN "serie" AS s ON s.serie_id = ss.serie_id1 WHERE serie_id0 = \'%s\'' % serie_id, con=db.engine)
-
-        serie_df = cls.reduce_memory(serie_df)
-
-        return serie_df
-
-    @classmethod
     def get_for_profile(cls):
         serie_df = pd.read_sql_query(
             'SELECT s.serie_id, string_agg(g.content_type || g.name, \',\') AS genres FROM "serie" AS s LEFT OUTER JOIN "serie_genres" AS tg ON tg.serie_id = s.serie_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = tg.genre_id GROUP BY s.serie_id', con=db.engine)

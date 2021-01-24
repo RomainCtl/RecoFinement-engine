@@ -11,32 +11,6 @@ class Book(Content):
     def request_for_popularity(self):
         return super().request_for_popularity(self.content_type)
 
-    @classmethod
-    def get_similars(cls, isbn):
-        """Get all similars content of a book
-
-        Args:
-            isbn (str): book unique id
-
-        Returns:
-            Dataframe: similars book dataframe
-        """
-        book_df = pd.read_sql_query(
-            'SELECT sb.isbn0 as isbn, sb.isbn1 as similar_isbn, sb.similarity, b.popularity_score FROM "similars_book" AS sb INNER JOIN "book" AS b ON b.isbn = sb.isbn1 WHERE isbn0 = \'%s\'' % isbn, con=db.engine)
-
-        book_df = cls.reduce_memory(book_df)
-
-        return book_df
-
-    @classmethod
-    def get_books(cls):
-        book_df = pd.read_sql_query('SELECT * FROM "book"', con=db.engine)
-
-        # Reduce memory
-        book_df = cls.reduce_memory(book_df)
-
-        return book_df
-
     def get_with_genres(self):
         """Get book
 

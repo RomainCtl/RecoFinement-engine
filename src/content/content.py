@@ -53,6 +53,8 @@ class Content:
                 "float32")
 
     def _reduce_metadata_memory(self, df: pd.DataFrame):
+        cols = list(df.columns)
+
         if 'user_id' in cols:
             df['user_id'] = df['user_id'].astype("uint32")
         if self.id in cols:
@@ -189,24 +191,23 @@ class Content:
     def prepare_sim(self):
         raise Exception("'prepare_sim' function must be created")
 
-    # def get_similars(self, content_id, same_type=True):
-    #     """Get all similars content of a content
+    def get_similars(self, content_id, same_type=True):
+        """Get all similars content of a content
 
-    #     Args:
-    #         content_id (int): content unique id
+        Args:
+            content_id (int): content unique id
+            same_type (bool, optional): Select content with the same type if True. Defaults to True.
 
-    #     Returns:
-    #         Dataframe: similars content dataframe
-    #     """
-    #     filt = ""
-    #     if same_type:
-    #         filt = "AND s.content_type0 = s.content_type1"
+        Returns:
+            Dataframe: similars content dataframe
+        """
+        filt = ""
+        if same_type:
+            filt = "AND s.content_type0 = s.content_type1"
 
-    #     self.df = pd.read_sql_query(
-    #         'SELECT s.content_id0 AS content_id, s.content_id1 AS similar_content_id FROM %s AS s INNER JOIN "%s" AS c ON c.content_id = s.content_id1 WHERE s.content_id0 = "%s"' % (self.tablename_similars, self.tablename, content_id), con=db.engine)
-    #     # app_df = pd.read_sql_query(
-    #     #     'SELECT sa.app_id0 AS app_id, sa.app_id1 AS similar_app_id, sa.similarity, a.popularity_score FROM "similars_application" AS sa INNER JOIN "application" AS a ON a.app_id = sa.app_id1 WHERE app_id0 = \'%s\'' % app_id, con=db.engine)
+        self.df = pd.read_sql_query(
+            'SELECT s.content_id0 AS content_id, s.content_id1 AS similar_content_id FROM %s AS s INNER JOIN "%s" AS c ON c.content_id = s.content_id1 WHERE s.content_id0 = \'%s\' %s' % (self.tablename_similars, self.tablename, content_id, filt), con=db.engine)
 
-    #     self.reduce_memory()
+        self.reduce_memory()
 
-    #     return self.df
+        return self.df

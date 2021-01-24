@@ -37,6 +37,8 @@ class FromSimilarContent(Engine):
         for media in self.__media__:
             st_time = datetime.utcnow()
 
+            m = media(logger=self.logger)
+
             if self.is_group:
                 self.obj_df = self.obj.get(group_id=self.group_id)
             else:
@@ -51,16 +53,16 @@ class FromSimilarContent(Engine):
             # for each user
             for index, user in self.obj_df.iterrows():
                 # Get meta
-                meta_cols = [media.id, "rating", "review_see_count"]
+                meta_cols = [m.id, "rating", "review_see_count"]
                 if self.is_group:
                     self.media_df = pd.DataFrame(columns=meta_cols)
                     for u in user['user_id'].split(","):
                         self.media_df = self.media_df.append(
-                            media.get_meta(meta_cols, u),
+                            m.get_meta(meta_cols, u),
                             ignore_index=True
                         )
                 else:
-                    self.media_df = media.get_meta(meta_cols, user["user_id"])
+                    self.media_df = m.get_meta(meta_cols, user["user_id"])
 
                 # Do not taking bad content that user do not like
                 self.media_df = self.media_df[(self.media_df["rating"] >= 3) | (
@@ -70,26 +72,26 @@ class FromSimilarContent(Engine):
                 already_recommended_media = []
                 with db as session:
                     result = session.execute('SELECT %s FROM "%s" WHERE %s = \'%s\' AND engine <> \'%s\'' % (
-                        media.id, media.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__))
+                        m.id, m.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__))
                     already_recommended_media = [
-                        dict(row)[media.id] for row in result]
+                        dict(row)[m.id] for row in result]
 
                 # Get list of similars content from already rate content
                 similars_df = pd.DataFrame(
-                    columns=[media.id, "similar_"+media.id, "similarity", "popularity_score", "rating", "review_see_count"])
-                for index, m in self.media_df.iterrows():
-                    d = media.get_similars(m[media.id])
-                    d = d[~d[media.id].isin(already_recommended_media)]
+                    columns=[m.id, "similar_"+m.id, "similarity", "popularity_score", "rating", "review_see_count"])
+                for index, content in self.media_df.iterrows():
+                    d = m.get_similars(content[m.id])
+                    d = d[~d[m.id].isin(already_recommended_media)]
                     if d.shape[0] > 0:
-                        d["rating"] = m["rating"]
-                        d["review_see_count"] = m["review_see_count"]
+                        d["rating"] = content["rating"]
+                        d["review_see_count"] = content["review_see_count"]
                         similars_df = similars_df.append(
                             d,
                             ignore_index=True,
                         )
 
                 if similars_df.shape[0] > 0:
-                    similars_df = similars_df.groupby([media.id, "similar_"+media.id]).agg(
+                    similars_df = similars_df.groupby([m.id, "similar_"+m.id]).agg(
                         {"similarity": "max", "popularity_score": "max", "rating": "sum", "review_see_count": "sum"}).reset_index()
 
                 # Order this list by most popular and make a selection (max popularity_score is 5 (also = max rate), see popularity engine (IMDB formula))
@@ -105,10 +107,10 @@ class FromSimilarContent(Engine):
                     (5 + similars_df["popularity_score"].max())
 
                 similars_df.drop(
-                    columns=[media.id, "similarity", "popularity_score", "rating"], axis=1, inplace=True)
+                    columns=[m.id, "similarity", "popularity_score", "rating"], axis=1, inplace=True)
 
                 similars_df = similars_df.groupby(
-                    ["similar_"+media.id]).sum().reset_index()
+                    ["similar_"+m.id]).sum().reset_index()
 
                 similars_df["score"] = similars_df["score"].apply(
                     lambda x: 1 if x > 1 else x)
@@ -119,7 +121,7 @@ class FromSimilarContent(Engine):
                     values.append(
                         {
                             self.obj.id: int(user[self.obj.id]),
-                            media.id: media.id_type(item["similar_"+media.id]),
+                            m.id: int(item["similar_"+m.id]),
                             "score": float(item["score"]),
                             "engine": self.__class__.__name__,
                             "engine_priority": self.__engine_priority__,
@@ -131,15 +133,15 @@ class FromSimilarContent(Engine):
                 with db as session:
                     # Reset list of recommended `media`
                     session.execute(
-                        text('DELETE FROM "%s" WHERE %s = \'%s\' AND engine = \'%s\'' % (media.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__)))
+                        text('DELETE FROM "%s" WHERE %s = \'%s\' AND engine = \'%s\'' % (m.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__)))
 
                     if len(values) > 0:
                         markers = ':%s, :%s, :score, :engine, :engine_priority' % (
-                            self.obj.id, media.id)
+                            self.obj.id, m.id)
                         ins = 'INSERT INTO {tablename} VALUES ({markers})'
                         ins = ins.format(
-                            tablename=media.tablename_recommended + self.obj.recommended_ext, markers=markers)
+                            tablename=m.tablename_recommended + self.obj.recommended_ext, markers=markers)
                         session.execute(ins, values)
 
             self.logger.info("%s recommendation from similar content in %s (%s lines)" % (
-                media.uppername, datetime.utcnow()-st_time, len_values))
+                m.content_type, datetime.utcnow()-st_time, len_values))
