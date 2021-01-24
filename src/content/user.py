@@ -1,5 +1,6 @@
 from src.utils import db
 from .genre import Genre
+from .content import ContentType
 
 import pandas as pd
 import numpy as np
@@ -44,23 +45,21 @@ class User:
         """Get users with liked genre
 
         Args:
-            types (list|str, optional): str or list of str of genre content type. Defaults to ["APPLICATION", "BOOK", "GAME", "MOVIE", "SERIE", "TRACK"].
+            types (list|ContentType, optional): str or list of str of genre content type. Defaults to ["APPLICATION", "BOOK", "GAME", "MOVIE", "SERIE", "TRACK"].
             liked_weight (int, optional): Weight of liked genre. Defaults to 2.
             user_uuid (str, optional): user uuid. Defaults to None.
 
         Returns:
             DataFrame: user and liked genre dataframe
         """
-        accepted_types = ["APPLICATION", "BOOK",
-                          "GAME", "MOVIE", "SERIE", "TRACK"]
-
-        if type(types) == str:
+        if isinstance(types, ContentType):
             types = [types]
-        assert all([t in accepted_types for t in types])
+        assert all([isinstance(t, ContentType) for t in types]
+                   ), "types must be instance of 'ContentType'"
 
         filt = ''
         if len(types) > 0:
-            _types = list(map(lambda x: "'%s'" % x, types))
+            _types = list(map(lambda x: "'%s'" % str(x).upper(), types))
             filt = 'AND g.content_type IN (%s)' % (', '.join(_types))
 
         usr = ''

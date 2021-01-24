@@ -103,7 +103,7 @@ class Content:
 
     def request_for_popularity(self, content_type=None):
         # Can be overrided by child class
-        assert content_type is None or isinstance(
+        assert content_type is None or not isinstance(
             content_type, ContentType), "content_type must be 'ContentType' instance or None"
 
         type_filt = ""
@@ -211,3 +211,44 @@ class Content:
         self.reduce_memory()
 
         return self.df
+
+    def get_for_profile(self):
+        self.df = pd.read_sql_query(
+            'SELECT ga.content_id, string_agg(g.content_type || g.name, \',\') AS genres FROM "%s" AS ga INNER JOIN "%s" AS cc ON cc.content_id = ga.content_id LEFT OUTER JOIN "content_genres" AS tg ON tg.content_id = ga.content_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = tg.genre_id GROUP BY ga.content_id' % (self.tablename, self.content_type), con=db.engine)
+
+        # Reduce memory
+        self.reduce_memory()
+
+        return self.df
+
+    def prepare_from_user_profile(self, df):
+        """Get content with genre
+
+        Args:
+            df (DataFrame): Content dataframe
+
+        Returns:
+            DataFrame: content with genre weight (0 or 1)
+        """
+
+        # Copying the content dataframe into a new one since we won't need to use the genre information in our first case.
+        contentWithGenres_df = df.copy()
+
+        # For every row in the dataframe, iterate through the list of genres and place a 1 into the corresponding column
+        for index, row in df.iterrows():
+            if row['genres'] is not None:
+                for genre in row['genres'].split(","):
+                    contentWithGenres_df.at[index, genre] = 1
+
+        # Filling in the NaN values with 0 to show that a content doesn't have that column's genre
+        contentWithGenres_df = contentWithGenres_df.fillna(0)
+
+        # Reduce memory
+        genre_cols = list(set(contentWithGenres_df.columns) -
+                          set(df.columns))
+        for c in genre_cols:
+            contentWithGenres_df[c] = contentWithGenres_df[c].astype("uint8")
+
+        contentWithGenres_df.drop(["genres"], axis=1, inplace=True)
+
+        return contentWithGenres_df

@@ -1,4 +1,5 @@
 from src.utils import db
+from .content import ContentType
 
 import pandas as pd
 import numpy as np
@@ -20,16 +21,14 @@ class Genre:
         Returns:
             DataFrame: genre dataframe
         """
-        accepted_types = ["APPLICATION", "BOOK",
-                          "GAME", "MOVIE", "SERIE", "TRACK"]
-
-        if type(types) == str:
+        if isinstance(types, ContentType):
             types = [types]
-        assert all([t in accepted_types for t in types])
+        assert all([isinstance(t, ContentType) for t in types]
+                   ), "types must be instance of 'ContentType'"
 
         filt = ''
         if len(types) > 0:
-            _types = list(map(lambda x: "'%s'" % x, types))
+            _types = list(map(lambda x: "'%s'" % str(x).upper(), types))
             filt = 'WHERE content_type IN (%s)' % (', '.join(_types))
 
         genre_df = pd.read_sql_query(

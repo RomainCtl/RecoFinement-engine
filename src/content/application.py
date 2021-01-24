@@ -25,16 +25,6 @@ class Application(Content):
 
         return q_df
 
-    @classmethod
-    def get_for_profile(cls):
-        app_df = pd.read_sql_query(
-            'SELECT a.app_id, g.content_type || g.name AS genres FROM "application" AS a LEFT OUTER JOIN "genre" AS g ON g.genre_id = a.genre_id', con=db.engine)
-
-        # Reduce memory
-        app_df = cls.reduce_memory(app_df)
-
-        return app_df
-
     def get_with_genres(self):
         """Get application
 
@@ -51,38 +41,6 @@ class Application(Content):
         self.reduce_memory()
 
         return self.df
-
-    @staticmethod
-    def prepare_from_user_profile(app_df):
-        """Get app with genre
-
-        Args:
-            app_df (DataFrame): Application dataframe
-
-        Returns:
-            DataFrame: app with genre weight (0 or 1)
-        """
-        # Copying the app dataframe into a new one since we won't need to use the genre information in our first case.
-        appWithGenres_df = app_df.copy()
-
-        # For every row in the dataframe, iterate through the list of genres and place a 1 into the corresponding column
-        for index, row in app_df.iterrows():
-            if row['genres'] is not None:
-                for genre in row['genres'].split(","):
-                    appWithGenres_df.at[index, genre] = 1
-
-        # Filling in the NaN values with 0 to show that a app doesn't have that column's genre
-        appWithGenres_df = appWithGenres_df.fillna(0)
-
-        # Reduce memory
-        genre_cols = list(set(appWithGenres_df.columns) -
-                          set(app_df.columns))
-        for c in genre_cols:
-            appWithGenres_df[c] = appWithGenres_df[c].astype("uint8")
-
-        appWithGenres_df.drop(["genres"], axis=1, inplace=True)
-
-        return appWithGenres_df
 
     def prepare_sim(self):
         """Prepare application data for content similarity process

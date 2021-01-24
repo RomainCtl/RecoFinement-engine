@@ -11,16 +11,6 @@ class Serie(Content):
     def request_for_popularity(self):
         return super().request_for_popularity(self.content_type)
 
-    @classmethod
-    def get_for_profile(cls):
-        serie_df = pd.read_sql_query(
-            'SELECT s.serie_id, string_agg(g.content_type || g.name, \',\') AS genres FROM "serie" AS s LEFT OUTER JOIN "serie_genres" AS tg ON tg.serie_id = s.serie_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = tg.genre_id GROUP BY s.serie_id', con=db.engine)
-
-        # Reduce memory
-        serie_df = cls.reduce_memory(serie_df)
-
-        return serie_df
-
     def get_with_genres(self):
         """Get serie
 
@@ -37,39 +27,6 @@ class Serie(Content):
         self.reduce_memory()
 
         return self.df
-
-    @staticmethod
-    def prepare_from_user_profile(serie_df):
-        """Get serie with genre
-
-        Args:
-            serie_df (DataFrame): serie dataframe
-
-        Returns:
-            DataFrame: serie with genre weight (0 or 1)
-        """
-
-        # Copying the serie dataframe into a new one since we won't need to use the genre information in our first case.
-        serieWithGenres_df = serie_df.copy()
-
-        # For every row in the dataframe, iterate through the list of genres and place a 1 into the corresponding column
-        for index, row in serie_df.iterrows():
-            if row['genres'] is not None:
-                for genre in row['genres'].split(","):
-                    serieWithGenres_df.at[index, genre] = 1
-
-        # Filling in the NaN values with 0 to show that a serie doesn't have that column's genre
-        serieWithGenres_df = serieWithGenres_df.fillna(0)
-
-        # Reduce memory
-        genre_cols = list(set(serieWithGenres_df.columns) -
-                          set(serie_df.columns))
-        for c in genre_cols:
-            serieWithGenres_df[c] = serieWithGenres_df[c].astype("uint8")
-
-        serieWithGenres_df.drop(["genres"], axis=1, inplace=True)
-
-        return serieWithGenres_df
 
     def prepare_sim(self):
         """Prepare serie data for content similarity process

@@ -15,15 +15,11 @@ class Engine(Thread, metaclass=ABCMeta):
         self.logger = current_app.logger
 
     def run(self):
-        # try:
         st_time = datetime.utcnow()
         with self.app.app_context():
             self.train()
         self.logger.info("%s engine performed in %s" %
                          (self.__class__.__name__, datetime.utcnow()-st_time))
-        # except Exception as e:
-        #     self.logger.error("During %s (at %s): %s" %
-        #                       (self.__class__.__name__, datetime.utcnow()-st_time, str(e)))
 
     @abstractmethod
     def train(self):

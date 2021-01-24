@@ -11,16 +11,6 @@ class Movie(Content):
     def request_for_popularity(self):
         return super().request_for_popularity(self.content_type)
 
-    @classmethod
-    def get_for_profile(cls):
-        movie_df = pd.read_sql_query(
-            'SELECT m.movie_id, string_agg(g.content_type || g.name, \',\') AS genres FROM "movie" AS m LEFT OUTER JOIN "movie_genres" AS tg ON tg.movie_id = m.movie_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = tg.genre_id GROUP BY m.movie_id', con=db.engine)
-
-        # Reduce memory
-        movie_df = cls.reduce_memory(movie_df)
-
-        return movie_df
-
     def get_with_genres(self):
         """Get movie
 
@@ -37,39 +27,6 @@ class Movie(Content):
         self.reduce_memory()
 
         return self.df
-
-    @staticmethod
-    def prepare_from_user_profile(movie_df):
-        """Get movie with genre
-
-        Args:
-            movie_df (DataFrame): movie dataframe
-
-        Returns:
-            DataFrame: movie with genre weight (0 or 1)
-        """
-
-        # Copying the movie dataframe into a new one since we won't need to use the genre information in our first case.
-        movieWithGenres_df = movie_df.copy()
-
-        # For every row in the dataframe, iterate through the list of genres and place a 1 into the corresponding column
-        for index, row in movie_df.iterrows():
-            if row['genres'] is not None:
-                for genre in row['genres'].split(","):
-                    movieWithGenres_df.at[index, genre] = 1
-
-        # Filling in the NaN values with 0 to show that a movie doesn't have that column's genre
-        movieWithGenres_df = movieWithGenres_df.fillna(0)
-
-        # Reduce memory
-        genre_cols = list(set(movieWithGenres_df.columns) -
-                          set(movie_df.columns))
-        for c in genre_cols:
-            movieWithGenres_df[c] = movieWithGenres_df[c].astype("uint8")
-
-        movieWithGenres_df.drop(["genres"], axis=1, inplace=True)
-
-        return movieWithGenres_df
 
     def prepare_sim(self):
         """Prepare movie data for content similarity process

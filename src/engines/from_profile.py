@@ -1,4 +1,4 @@
-from src.content import User, Group, Application, Book
+from src.content import User, Group, ContentType
 from src.utils import db
 from .engine import Engine
 
@@ -40,57 +40,58 @@ class FromProfile(Engine):
 
     def train(self):
         for media in self.__media__:
-            if media.tablename_media in [
-                Application.tablename_media,  # 1 seul genre par app ...
-                Book.tablename_media  # Pas de genre pour les livres
+            m = media(logger=self.logger)
+            if m.content_type in [
+                ContentType.APPLICATION,  # 1 seul genre par app ...
+                ContentType.BOOK  # Pas de genre pour les livres
             ]:
                 continue
             st_time = datetime.utcnow()
 
             if self.is_group:
                 self.obj_df = self.obj.get_with_genres(
-                    media.uppername, group_id=self.group_id)
+                    m.content_type, group_id=self.group_id)
             else:
                 # Get user
                 self.obj_df = self.obj.get_with_genres(
-                    media.uppername, user_uuid=self.user_uuid)
+                    m.content_type, user_uuid=self.user_uuid)
 
             # Check we have a result for this user uuid
             if self.obj_df is None:
                 continue
 
             # Get media (only rating for now)
-            self.media_df = media.get_for_profile()
-            self.mediaWithGenres_df = media.prepare_from_user_profile(
+            self.media_df = m.get_for_profile()
+            self.mediaWithGenres_df = m.prepare_from_user_profile(
                 self.media_df)
 
             self.logger.debug("%s data preparation performed in %s" %
-                              (media.uppername, datetime.utcnow()-st_time))
+                              (m.content_type, datetime.utcnow()-st_time))
 
             # Now let's get the genres of every movie in our original dataframe
             genre_table = self.mediaWithGenres_df.set_index(
-                self.mediaWithGenres_df[media.id])
+                self.mediaWithGenres_df[m.id])
 
             len_values = 0
             # for each user
             for index, user in self.obj_df.iterrows():
                 # Get meta
-                meta_cols = [media.id, "rating", "review_see_count"]
+                meta_cols = [m.id, "rating", "review_see_count"]
                 if self.is_group:
                     user_input = pd.DataFrame(columns=meta_cols)
                     for u in user['user_id']:
                         user_input = user_input.append(
-                            media.get_meta(meta_cols, u),
+                            m.get_meta(meta_cols, u),
                             ignore_index=True
                         )
                 else:
-                    user_input = media.get_meta(meta_cols, user["user_id"])
+                    user_input = m.get_meta(meta_cols, user["user_id"])
 
                 if user_input.shape[0] == 0:
                     continue
 
                 user_profile = self.learning_user_profile(
-                    user, media.id, user_input)
+                    user, m.id, user_input)
 
                 user_profile = user_profile.fillna(0)
 
@@ -108,9 +109,9 @@ class FromProfile(Engine):
                 already_recommended_media = []
                 with db as session:
                     result = session.execute('SELECT %s FROM "%s" WHERE %s = \'%s\' AND engine <> \'%s\'' % (
-                        media.id, media.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__))
+                        m.id, m.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__))
                     already_recommended_media = [
-                        dict(row)[media.id] for row in result]
+                        dict(row)[m.id] for row in result]
 
                 recommendationTable_df = recommendationTable_df[~recommendationTable_df.index.isin(
                     already_recommended_media)]
@@ -130,7 +131,7 @@ class FromProfile(Engine):
                     values.append(
                         {
                             self.obj.id: int(user[self.obj.id]),
-                            media.id: media.id_type(id),
+                            m.id: m.id_type(id),
                             "score": float(score),
                             "engine": self.__class__.__name__,
                             "engine_priority": self.__engine_priority__,
@@ -142,18 +143,18 @@ class FromProfile(Engine):
                 with db as session:
                     # Reset list of recommended `media`
                     session.execute(
-                        text('DELETE FROM "%s" WHERE %s = \'%s\' AND engine = \'%s\'' % (media.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__)))
+                        text('DELETE FROM "%s" WHERE %s = \'%s\' AND engine = \'%s\'' % (m.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__)))
 
                     if len(values) > 0:
                         markers = ':%s, :%s, :score, :engine, :engine_priority' % (
-                            self.obj.id, media.id)
+                            self.obj.id, m.id)
                         ins = 'INSERT INTO {tablename} VALUES ({markers})'
                         ins = ins.format(
-                            tablename=media.tablename_recommended + self.obj.recommended_ext, markers=markers)
+                            tablename=m.tablename_recommended + self.obj.recommended_ext, markers=markers)
                         session.execute(ins, values)
 
             self.logger.info("%s recommendation from user profile performed in %s (%s lines)" % (
-                media.uppername, datetime.utcnow()-st_time, len_values))
+                m.content_type, datetime.utcnow()-st_time, len_values))
 
     def learning_user_profile(self, user, media_id, user_input):
         """Learning user profile from rating and interests

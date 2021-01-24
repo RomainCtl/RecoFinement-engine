@@ -22,16 +22,6 @@ class Game(Content):
 
         return df
 
-    @classmethod
-    def get_for_profile(cls):
-        game_df = pd.read_sql_query(
-            'SELECT ga.game_id, string_agg(g.content_type || g.name, \',\') AS genres FROM "game" AS ga LEFT OUTER JOIN "game_genres" AS tg ON tg.game_id = ga.game_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = tg.genre_id GROUP BY ga.game_id', con=db.engine)
-
-        # Reduce memory
-        game_df = cls.reduce_memory(game_df)
-
-        return game_df
-
     def get_with_genres(self):
         """Get game
 
@@ -48,39 +38,6 @@ class Game(Content):
         self.reduce_memory()
 
         return self.df
-
-    @staticmethod
-    def prepare_from_user_profile(game_df):
-        """Get game with genre
-
-        Args:
-            game_df (DataFrame): Game dataframe
-
-        Returns:
-            DataFrame: game with genre weight (0 or 1)
-        """
-
-        # Copying the game dataframe into a new one since we won't need to use the genre information in our first case.
-        gameWithGenres_df = game_df.copy()
-
-        # For every row in the dataframe, iterate through the list of genres and place a 1 into the corresponding column
-        for index, row in game_df.iterrows():
-            if row['genres'] is not None:
-                for genre in row['genres'].split(","):
-                    gameWithGenres_df.at[index, genre] = 1
-
-        # Filling in the NaN values with 0 to show that a game doesn't have that column's genre
-        gameWithGenres_df = gameWithGenres_df.fillna(0)
-
-        # Reduce memory
-        genre_cols = list(set(gameWithGenres_df.columns) -
-                          set(game_df.columns))
-        for c in genre_cols:
-            gameWithGenres_df[c] = gameWithGenres_df[c].astype("uint8")
-
-        gameWithGenres_df.drop(["genres"], axis=1, inplace=True)
-
-        return gameWithGenres_df
 
     def prepare_sim(self):
         """Prepare game data for content similarity process
