@@ -32,25 +32,40 @@ def parallelize_matrix(scipy_mat, rows_per_chunk=100):
     return sc.parallelize(submatrices)
 
 
-def find_matches_in_submatrix(sources, targets, inputs_start_index, indices, real_indice_type, real_indice_name, threshold=.5, max_sim=10):
+def find_matches_in_submatrix(sources, targets, inputs_start_index, indices, real_indice_name, content_type, threshold=.5, max_sim=10):
     cosimilarities = cosine_similarity(sources, targets)
     for i, cosimilarity in enumerate(cosimilarities):
         cosimilarity = cosimilarity.flatten()
 
         # Find real id
-        source_index = real_indice_type(
-            indices[indices == inputs_start_index + i].index[0])
+        source_indice = indices[indices == inputs_start_index + i].index[0]
+        source_index = int(source_indice[0])
+        source_type = source_indice[1]
+
+        if str(source_type) != str(content_type[0]):
+            continue
 
         # Sort by best match using argsort(), and take 10 first
         targets = cosimilarity.argsort()[-(max_sim+1):]
 
-        for target_index in targets:
-            similarity = cosimilarity[target_index]
+        for target_i in targets:
+            similarity = cosimilarity[target_i]
             # Find real id
-            target_index = real_indice_type(
-                indices[indices == target_index].index[0])
+            target_indice = indices[indices == target_i].index[0]
+            target_index = int(target_indice[0])
+            target_type = target_indice[1]
+
+            if str(target_type) != str(content_type[1]):
+                continue
+
             if similarity >= threshold and target_index != source_index:
-                yield {"%s0" % real_indice_name: source_index, "%s1" % real_indice_name: target_index, "similarity": float(similarity)}
+                yield {
+                    "%s0" % real_indice_name: source_index,
+                    "%s1" % real_indice_name: target_index,
+                    "similarity": float(similarity),
+                    "content_type0": str(content_type[0]).upper(),
+                    "content_type1": str(content_type[1]).upper(),
+                }
 
 
 sc = Spark()

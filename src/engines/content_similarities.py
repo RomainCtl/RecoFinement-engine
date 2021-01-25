@@ -19,10 +19,15 @@ class ContentSimilarities(Engine):
     def train(self):
         """(Re)load similarity score between item
         """
+        with db as session:
+            session.execute(
+                text('DELETE FROM "%s" WHERE content_type0 = content_type1' % (self.__media__[0].tablename_similars)))
+
         for media in self.__media__:
             st_time = datetime.utcnow()
+            m = media(logger=self.logger)
 
-            df = media.prepare_sim(media.get_with_genres())[:100_000]
+            df = m.prepare_sim()[:100_000]
             # FIXME limitation of dataframe (Let's go to bigdata...), we juste need a cluster (currently, we use spark standalone)
 
             # Pre-calculate voc
@@ -34,17 +39,20 @@ class ContentSimilarities(Engine):
                 stop_words="english", vocabulary=vocabulary, dtype=np.float32)
 
             self.logger.debug("%s data preparation performed in %s" %
-                              (media.uppername, datetime.utcnow()-st_time))
+                              (m.content_type, datetime.utcnow()-st_time))
 
             # Construct the required TF-IDF matrix by fitting and transforming the data
             tfidf_matrix = tfidf.fit_transform(df['soup'])
 
             self.logger.debug("%s TF-IDF transformation performed in %s" %
-                              (media.uppername, datetime.utcnow()-st_time))
+                              (m.content_type, datetime.utcnow()-st_time))
 
             # Reset index of your main DataFrame and construct reverse mapping as before
             df = df.reset_index()
-            indices = pd.Series(df.index, index=df[media.id])
+            indices = pd.Series(
+                df.index,
+                index=zip(df[m.id], df["content_type"])
+            )
 
             tfidf_mat_para = parallelize_matrix(
                 tfidf_matrix, rows_per_chunk=100)
@@ -55,23 +63,21 @@ class ContentSimilarities(Engine):
                 targets=tfidf_mat_dist,
                 inputs_start_index=submatrix[0],
                 indices=indices,
-                real_indice_type=media.id_type,
-                real_indice_name=media.id)
+                real_indice_name=m.id,
+                content_type=(m.content_type, m.content_type))
             ).collect()
 
             self.logger.debug("%s cosine sim performed in %s" %
-                              (media.uppername, datetime.utcnow()-st_time))
+                              (str(m.content_type), datetime.utcnow()-st_time))
 
-            with db as session:
-                # Reset popularity score (delete and re-add column for score)
-                session.execute(
-                    text('TRUNCATE TABLE "%s" RESTART IDENTITY' % media.tablename_similars))
-
-                markers = ':%s0, :%s1, :similarity' % (media.id, media.id)
-                ins = 'INSERT INTO {tablename} VALUES ({markers})'
-                ins = ins.format(
-                    tablename=media.tablename_similars, markers=markers)
-                session.execute(ins, values)
+            if len(values) > 0:
+                with db as session:
+                    markers = ':%s0, :%s1, :similarity, :content_type0, :content_type1' % (
+                        m.id, m.id)
+                    ins = 'INSERT INTO {tablename} VALUES ({markers})'
+                    ins = ins.format(
+                        tablename=m.tablename_similars, markers=markers)
+                    session.execute(ins, values)
 
             self.logger.info("%s similarity reloading performed in %s (%s lines)" %
-                             (media.uppername, datetime.utcnow()-st_time, len(values)))
+                             (m.content_type, datetime.utcnow()-st_time, len(values)))
