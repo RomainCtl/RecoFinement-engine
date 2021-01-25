@@ -7,6 +7,7 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 import enum
+import importlib
 
 
 class ContentType(enum.Enum):
@@ -33,6 +34,10 @@ class Content:
 
     __meta_cols__ = ["user_id", id, "rating", "last_rating_date",
                      "review_see_count", "last_review_see_date", "count", "last_count_increment"]
+
+    # For similarities between different content (different content type)
+    cmp_column_name = None
+    other_content_cmp = []
 
     def __init__(self, dataframe: pd.DataFrame = None, logger=None):
         self.df = dataframe
@@ -252,3 +257,35 @@ class Content:
         contentWithGenres_df.drop(["genres"], axis=1, inplace=True)
 
         return contentWithGenres_df
+
+    def prepare_sim_between_content(self):
+        dfs = []
+        content_module = importlib.import_module("src.content")
+        frames = [
+            self,
+            *[
+                getattr(content_module, str(o).capitalize())
+                for o in self.other_content_cmp
+            ]
+        ]
+        for content in frames:
+            tmp = pd.read_sql_query(
+                'SELECT cc.content_id, cc.%s AS name FROM "%s" AS c INNER JOIN "%s" AS cc ON cc.content_id = c.content_id GROUP BY cc.content_id' % (content.cmp_column_name, self.tablename, content.content_type), con=db.engine)
+            tmp["content_type"] = str(content.content_type)
+            dfs.append(tmp)
+
+        for i in range(len(dfs)):
+            # Replace NaN with empty string
+            dfs[i]["name"].fillna('', inplace=True)
+
+            # Clean and homogenise data
+            dfs[i]["name"] = dfs[i]["name"].apply(clean_data)
+
+            # Create a soup
+            dfs[i]['soup'] = dfs[i].apply(
+                lambda x: create_soup(x, ["name"]), axis=1)
+
+            # Delete unused col
+            dfs[i] = dfs[i].drop(["name"], 1)
+
+        return dfs[0], dfs[1:]

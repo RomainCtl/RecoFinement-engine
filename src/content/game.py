@@ -8,6 +8,10 @@ import numpy as np
 class Game(Content):
     content_type = ContentType.GAME
 
+    # For similarities between different content (different content type)
+    cmp_column_name = "name"
+    other_content_cmp = [ContentType.MOVIE, ContentType.SERIE]
+
     def request_for_popularity(self):
         self.df = pd.read_sql_query(
             'SELECT c.content_id, c.rating, c.rating_count, cc.recommendations FROM "%s" AS c INNER JOIN "%s" AS cc ON cc.content_id = c.content_id' % (self.tablename, str(self.content_type)), con=db.engine)
@@ -46,6 +50,7 @@ class Game(Content):
             DataFrame: result dataframe
         """
         game_df = self.get_with_genres()
+        game_df["content_type"] = self.content_type
         # Transform genres str to list
         game_df["genres"] = game_df["genres"].apply(
             lambda x: str(x).split(","))

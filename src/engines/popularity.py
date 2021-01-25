@@ -18,6 +18,13 @@ class Popularity(Engine):
     def train(self):
         """(Re)load popularity score of each media
         """
+        # open a transaction
+        with db as session:
+            # Reset popularity score (delete and re-add column for score)
+            session.execute(
+                text('ALTER TABLE "%s" DROP COLUMN popularity_score' % m.tablename))
+            session.execute(
+                text('ALTER TABLE "%s" ADD COLUMN popularity_score DOUBLE PRECISION' % m.tablename))
         for media in self.__media__:
             st_time = datetime.utcnow()
 
@@ -26,11 +33,6 @@ class Popularity(Engine):
 
             # open a transaction
             with db as session:
-                # Reset popularity score (delete and re-add column for score)
-                session.execute(
-                    text('ALTER TABLE "%s" DROP COLUMN popularity_score' % m.tablename))
-                session.execute(
-                    text('ALTER TABLE "%s" ADD COLUMN popularity_score DOUBLE PRECISION' % m.tablename))
                 # Set new popularity score
                 for index, row in q_df.iterrows():
                     session.execute(

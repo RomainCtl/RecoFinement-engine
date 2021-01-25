@@ -8,6 +8,10 @@ import numpy as np
 class Track(Content):
     content_type = ContentType.TRACK
 
+    # For similarities between different content (different content type)
+    cmp_column_name = "title"
+    other_content_cmp = [ContentType.MOVIE, ContentType.SERIE]
+
     def request_for_popularity(self):
         return super().request_for_popularity(self.content_type)
 
@@ -49,6 +53,7 @@ class Track(Content):
             DataFrame: result dataframe
         """
         track_df = self.get_with_genres()
+        track_df["content_type"] = self.content_type
         # Transform genres str to list
         track_df["genres"] = track_df["genres"].apply(
             lambda x: str(x).split(","))

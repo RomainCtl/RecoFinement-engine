@@ -8,6 +8,9 @@ import numpy as np
 class Application(Content):
     content_type = ContentType.APPLICATION
 
+    # For similarities between different content (different content type)
+    cmp_column_name = "name"
+
     def request_for_popularity(self):
         return super().request_for_popularity(self.content_type)
 
@@ -49,6 +52,7 @@ class Application(Content):
             DataFrame: result dataframe
         """
         app_df = self.get_with_genres()
+        app_df["content_type"] = self.content_type
         # Replace NaN with an empty string
         features = ['name', 'type', 'content_rating', 'genres']
         for feature in features:

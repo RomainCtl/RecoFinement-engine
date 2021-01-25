@@ -78,8 +78,8 @@ class CollaborativeFiltering(Engine):
 
                 with db as session:
                     # Reset list of recommended `media` for this engine
-                    session.execute(text('DELETE FROM "%s" WHERE user_id = %s AND engine = \'%s\'' % (
-                        m.tablename_recommended, user.user_id, self.__class__.__name__)))
+                    session.execute(text('DELETE FROM "%s" WHERE user_id = %s AND engine = \'%s\' AND content_type = \'%s\'' % (
+                        m.tablename_recommended, user.user_id, self.__class__.__name__, str(m.content_type).upper())))
 
                     if len(values) > 0:
                         markers = ':user_id, :%s, :score, :engine, :engine_priority' % m.id

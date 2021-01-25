@@ -8,6 +8,10 @@ import numpy as np
 class Serie(Content):
     content_type = ContentType.SERIE
 
+    # For similarities between different content (different content type)
+    cmp_column_name = "title"
+    other_content_cmp = [ContentType.BOOK, ContentType.MOVIE]
+
     def request_for_popularity(self):
         return super().request_for_popularity(self.content_type)
 
@@ -35,6 +39,7 @@ class Serie(Content):
             DataFrame: result dataframe
         """
         serie_df = self.get_with_genres()
+        serie_df["content_type"] = self.content_type
         # Remove '0' from year
         serie_df["start_year"] = serie_df["start_year"].astype(str)
         serie_df["start_year"] = serie_df["start_year"].replace('0', '')

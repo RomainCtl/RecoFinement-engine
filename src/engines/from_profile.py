@@ -143,7 +143,7 @@ class FromProfile(Engine):
                 with db as session:
                     # Reset list of recommended `media`
                     session.execute(
-                        text('DELETE FROM "%s" WHERE %s = \'%s\' AND engine = \'%s\'' % (m.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__)))
+                        text('DELETE FROM "%s" WHERE %s = \'%s\' AND engine = \'%s\' AND content_type = \'%s\'' % (m.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__, str(m.content_type).upper())))
 
                     if len(values) > 0:
                         markers = ':%s, :%s, :score, :engine, :engine_priority' % (

@@ -1,4 +1,4 @@
-from src.engines import Popularity, ContentSimilarities, CollaborativeFiltering, FromProfile, FromSimilarContent
+from src.engines import Popularity, ContentSimilarities, CollaborativeFiltering, FromProfile, FromSimilarContent, LinkBetweenItems
 from src.engines.engine import Engine
 
 from threading import Thread
@@ -11,6 +11,7 @@ class Recommend(Engine):
     def train(self):
         start_popularity_engine(wait=True)
         start_similarities_engine(wait=True)
+        start_similarities_between_items_engine(wait=True)
 
         start_from_similar_content_engine(wait=True)
         start_from_profile_engine(wait=True)
@@ -40,6 +41,13 @@ def start_popularity_engine(wait=True):
 
 def start_similarities_engine(wait=True):
     c = ContentSimilarities()
+    c.start()
+    if wait:
+        c.join()
+
+
+def start_similarities_between_items_engine(wait=True):
+    c = LinkBetweenItems()
     c.start()
     if wait:
         c.join()

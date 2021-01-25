@@ -8,6 +8,9 @@ import numpy as np
 class Book(Content):
     content_type = ContentType.BOOK
 
+    # For similarities between different content (different content type)
+    cmp_column_name = "title"
+
     def request_for_popularity(self):
         return super().request_for_popularity(self.content_type)
 
@@ -37,6 +40,7 @@ class Book(Content):
             DataFrame: result dataframe
         """
         book_df = self.get_with_genres()
+        book_df["content_type"] = self.content_type
         # remove '0' from year
         book_df["year_of_publication"] = book_df["year_of_publication"].astype(
             str)
