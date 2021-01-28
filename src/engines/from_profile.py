@@ -131,7 +131,7 @@ class FromProfile(Engine):
                     values.append(
                         {
                             self.obj.id: int(user[self.obj.id]),
-                            m.id: m.id_type(id),
+                            m.id: int(id),
                             "score": float(score),
                             "engine": self.__class__.__name__,
                             "engine_priority": self.__engine_priority__,
