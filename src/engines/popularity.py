@@ -22,9 +22,9 @@ class Popularity(Engine):
         with db as session:
             # Reset popularity score (delete and re-add column for score)
             session.execute(
-                text('ALTER TABLE "%s" DROP COLUMN popularity_score' % m.tablename))
+                text('ALTER TABLE "%s" DROP COLUMN popularity_score' % self.__media__[0].tablename))
             session.execute(
-                text('ALTER TABLE "%s" ADD COLUMN popularity_score DOUBLE PRECISION' % m.tablename))
+                text('ALTER TABLE "%s" ADD COLUMN popularity_score DOUBLE PRECISION' % self.__media__[0].tablename))
         for media in self.__media__:
             st_time = datetime.utcnow()
 
