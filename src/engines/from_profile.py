@@ -135,6 +135,7 @@ class FromProfile(Engine):
                             "score": float(score),
                             "engine": self.__class__.__name__,
                             "engine_priority": self.__engine_priority__,
+                            "content_type": str(m.content_type).upper(),
                         }
                     )
 
@@ -146,7 +147,7 @@ class FromProfile(Engine):
                         text('DELETE FROM "%s" WHERE %s = \'%s\' AND engine = \'%s\' AND content_type = \'%s\'' % (m.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__, str(m.content_type).upper())))
 
                     if len(values) > 0:
-                        markers = ':%s, :%s, :score, :engine, :engine_priority' % (
+                        markers = ':%s, :%s, :score, :engine, :engine_priority, :content_type' % (
                             self.obj.id, m.id)
                         ins = 'INSERT INTO {tablename} VALUES ({markers})'
                         ins = ins.format(
