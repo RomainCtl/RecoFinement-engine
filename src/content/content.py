@@ -108,7 +108,7 @@ class Content:
 
     def request_for_popularity(self, content_type=None):
         # Can be overrided by child class
-        assert content_type is None or not isinstance(
+        assert content_type is not None and isinstance(
             content_type, ContentType), "content_type must be 'ContentType' instance or None"
 
         type_filt = ""
