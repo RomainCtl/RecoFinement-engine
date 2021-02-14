@@ -19,6 +19,8 @@ class ContentSimilarities(Engine):
     def train(self):
         """(Re)load similarity score between item
         """
+        if self.check_if_necessary() is False:
+            return
         with db as session:
             session.execute(
                 text('DELETE FROM "%s" WHERE content_type0 = content_type1' % (self.__media__[0].tablename_similars)))
@@ -81,3 +83,24 @@ class ContentSimilarities(Engine):
 
             self.logger.info("%s similarity reloading performed in %s (%s lines)" %
                              (m.content_type, datetime.utcnow()-st_time, len(values)))
+            self.store_date(m.content_type)
+
+    def check_if_necessary(self):
+        for media in self.__media__:
+            df = pd.read_sql_query(
+                'SELECT last_launch_date FROM "engine" WHERE engine = \'%s\' AND content_type = \'%s\'' % (self.__class__.__name__, str(media.content_type).upper()), con=db.engine)
+
+            if df.shape[0] == 0:
+                # means that this engine has never been launched.
+                return True
+
+            last_launch_date = df.iloc[0]["last_launch_date"]
+
+            df = pd.read_sql_query(
+                'SELECT COUNT(*) FROM "%s_added_event" WHERE occured_at > %s' % (media.content_type, last_launch_date), con=db.engine)
+
+            if df.shape[0] != 0:
+                # New change occured
+                return True
+
+        return False
