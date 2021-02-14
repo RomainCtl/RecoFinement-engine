@@ -15,6 +15,7 @@ flask = "*"
 sklearn = "*"
 pyspark = "*"
 gunicorn = "*"
+flask-uuid = "*"
 
 [requires]
 python_version = "3.8"

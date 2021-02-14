@@ -1,4 +1,4 @@
-from src.content import User, Group
+from src.content import User, Group, Profile
 from src.utils import db
 from .engine import Engine
 
@@ -18,20 +18,31 @@ class FromSimilarContent(Engine):
     user_uuid = None
     group_id = None
 
-    def __init__(self, *args, user_uuid=None, group_id=None, is_group=False, **kwargs):
+    def __init__(self, *args, user_uuid=None, group_id=None, is_group=False, profile_uuid=None, event_id=None, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.is_group = is_group
-        if self.is_group:
-            self.obj = Group
-            self.group_id = group_id
+        self.profile_uuid = profile_uuid
+        uuid.UUID(profile_uuid)  # raise exception if bad not a good uuid (v4)
+        self.event_id = event_id
+        assert (profile_uuid is None and event_id is None) or (
+            profile_uuid is not None and event_id is not None), "profile_uuid and event_id must be both None or both not None!"
+
+        self.is_group = False
+
+        if profile_uuid is not None:
+            self.obj = Profile
         else:
-            self.obj = User
-            self.user_uuid = user_uuid
-            try:
-                uuid.UUID(user_uuid)
-            except (ValueError, TypeError):
-                self.user_uuid = None
+            self.is_group = is_group
+            if self.is_group:
+                self.obj = Group
+                self.group_id = group_id
+            else:
+                self.obj = User
+                self.user_uuid = user_uuid
+                try:
+                    uuid.UUID(user_uuid)
+                except (ValueError, TypeError):
+                    self.user_uuid = None
 
     def train(self):
         for media in self.__media__:
@@ -41,16 +52,19 @@ class FromSimilarContent(Engine):
 
             if self.is_group:
                 self.obj_df = self.obj.get(group_id=self.group_id)
-            else:
+            elif self.user_uuid is not None:
                 # Get user
                 self.obj_df = self.obj.get(user_uuid=self.user_uuid)
+            else:
+                # Profile
+                self.obj_df = self.obj.get(profile_uuid=self.profile_uuid)
 
             # Check we have a result for this user uuid
             if self.obj_df.shape[0] == 0:
                 continue
 
             len_values = 0
-            # for each user
+            # for each user (or group, or profile)
             for index, user in self.obj_df.iterrows():
                 # Get meta
                 meta_cols = [m.id, "rating", "review_see_count"]
@@ -61,8 +75,11 @@ class FromSimilarContent(Engine):
                             m.get_meta(meta_cols, u),
                             ignore_index=True
                         )
-                else:
+                elif self.user_uuid is not None:
                     self.media_df = m.get_meta(meta_cols, user["user_id"])
+                else:
+                    self.media_df = Profile.get_meta(
+                        m, meta_cols, self.event_id)
 
                 # Do not taking bad content that user do not like
                 self.media_df = self.media_df[(self.media_df["rating"] >= 3) | (
@@ -70,11 +87,12 @@ class FromSimilarContent(Engine):
 
                 # Do not recommend already recommended content
                 already_recommended_media = []
-                with db as session:
-                    result = session.execute('SELECT %s FROM "%s" WHERE %s = \'%s\' AND engine <> \'%s\'' % (
-                        m.id, m.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__))
-                    already_recommended_media = [
-                        dict(row)[m.id] for row in result]
+                if self.profile_uuid is None:
+                    with db as session:
+                        result = session.execute('SELECT %s FROM "%s" WHERE %s = \'%s\' AND engine <> \'%s\'' % (
+                            m.id, m.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__))
+                        already_recommended_media = [
+                            dict(row)[m.id] for row in result]
 
                 # Get list of similars content from already rate content
                 similars_df = pd.DataFrame(
@@ -118,30 +136,50 @@ class FromSimilarContent(Engine):
                 # Store result
                 values = []
                 for index, item in similars_df.iterrows():
-                    values.append(
-                        {
-                            self.obj.id: int(user[self.obj.id]),
-                            m.id: int(item["similar_"+m.id]),
-                            "score": float(item["score"]),
-                            "engine": self.__class__.__name__,
-                            "engine_priority": self.__engine_priority__,
-                        }
-                    )
+                    if self.profile_uuid is None:
+                        values.append(
+                            {
+                                self.obj.id: int(user[self.obj.id]),
+                                m.id: int(item["similar_"+m.id]),
+                                "score": float(item["score"]),
+                                "engine": self.__class__.__name__,
+                                "engine_priority": self.__engine_priority__,
+                                "content_type": str(m.content_type).upper(),
+                            }
+                        )
+                    else:
+                        values.append(
+                            {
+                                self.obj.event_id: self.event_id,
+                                m.id: int(item["similar_"+m.id]),
+                                "score": float(item["score"]),
+                                "engine": self.__class__.__name__,
+                            }
+                        )
 
                 len_values += len(values)
 
                 with db as session:
-                    # Reset list of recommended `media`
-                    session.execute(
-                        text('DELETE FROM "%s" WHERE %s = \'%s\' AND engine = \'%s\' AND content_type = \'%s\'' % (m.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__, str(m.content_type).upper())))
+                    if self.profile_uuid is None:
+                        # Reset list of recommended `media`
+                        session.execute(
+                            text('DELETE FROM "%s" WHERE %s = \'%s\' AND engine = \'%s\' AND content_type = \'%s\'' % (m.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__, str(m.content_type).upper())))
 
-                    if len(values) > 0:
-                        markers = ':%s, :%s, :score, :engine, :engine_priority' % (
-                            self.obj.id, m.id)
-                        ins = 'INSERT INTO {tablename} VALUES ({markers})'
-                        ins = ins.format(
-                            tablename=m.tablename_recommended + self.obj.recommended_ext, markers=markers)
-                        session.execute(ins, values)
+                        if len(values) > 0:
+                            markers = ':%s, :%s, :score, :engine, :engine_priority' % (
+                                self.obj.id, m.id)
+                            ins = 'INSERT INTO {tablename} VALUES ({markers})'
+                            ins = ins.format(
+                                tablename=m.tablename_recommended + self.obj.recommended_ext, markers=markers)
+                            session.execute(ins, values)
+                    else:
+                        if len(values) > 0:
+                            markers = ':%s, :%s, :score, :engine' % (
+                                self.obj.event_id, m.id)
+                            ins = 'INSERT INTO {tablename} VALUES ({markers})'
+                            ins = ins.format(
+                                tablename=self.obj.tablename_recommended, markers=markers)
+                            session.execute(ins, values)
 
             self.logger.info("%s recommendation from similar content in %s (%s lines)" % (
                 m.content_type, datetime.utcnow()-st_time, len_values))
