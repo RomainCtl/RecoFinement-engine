@@ -16,6 +16,9 @@ class CollaborativeFiltering(Engine):
     max_nb_elem = 10
 
     def train(self):
+        if self.check_if_necessary() is False:
+            return
+
         for media in self.__media__:
             st_time = datetime.utcnow()
             m = media(logger=self.logger)
@@ -90,3 +93,24 @@ class CollaborativeFiltering(Engine):
 
             self.logger.info("%s recommendation from collaborative filtering performed in %s (%s lines)" % (
                 m.content_type, datetime.utcnow()-st_time, len_values))
+            self.store_date(m.content_type)
+
+    def check_if_necessary(self):
+        df = pd.read_sql_query(
+            'SELECT last_launch_date FROM "engine" WHERE engine = \'%s\'' % self.__class__.__name__, con=db.engine)
+
+        if df.shape[0] == 0:
+            # means that this engine has never been launched.
+            return True
+
+        last_launch_date = df.iloc[0]["last_launch_date"]
+
+        df = pd.read_sql_query(
+            'SELECT COUNT(*) FROM "meta_added_event" WHERE occured_at > %s' % last_launch_date +
+            'UNION SELECT COUNT(*) FROM "changed_event" WHERE model_name = \'meta_user_content\' AND occured_at > %s' % last_launch_date, con=db.engine)
+
+        if df.shape[0] != 50:
+            # New change occured (at least 50, can be changed)
+            return True
+
+        return False
