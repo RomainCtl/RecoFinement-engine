@@ -1,5 +1,5 @@
-from src import app
+from src import app, socketio
 from settings import PORT
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=PORT)
+    socketio.run(app, host="0.0.0.0", port=PORT)

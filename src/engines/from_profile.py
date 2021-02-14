@@ -1,4 +1,4 @@
-from src.content import User, Group, ContentType
+from src.content import User, Group, Profile, ContentType
 from src.utils import db
 from .engine import Engine
 
@@ -18,7 +18,7 @@ class FromProfile(Engine):
     user_uuid = None
     group_id = None
 
-    def __init__(self, *args, user_uuid=None, group_id=None, is_group=False, **kwargs):
+    def __init__(self, *args, user_uuid=None, group_id=None, is_group=False, profile_uuid=None, event_id=None, **kwargs):
         """
         Args:
             user_uuid (uuid|str, optional): user uuid to start engine for this specific user. Defaults to None.
@@ -26,17 +26,28 @@ class FromProfile(Engine):
         """
         super().__init__(*args, **kwargs)
 
-        self.is_group = is_group
-        if self.is_group:
-            self.obj = Group
-            self.group_id = group_id
+        self.profile_uuid = profile_uuid
+        uuid.UUID(profile_uuid)  # raise exception if bad not a good uuid (v4)
+        self.event_id = event_id
+        assert (profile_uuid is None and event_id is None) or (
+            profile_uuid is not None and event_id is not None), "profile_uuid and event_id must be both None or both not None!"
+
+        self.is_group = False
+
+        if profile_uuid is not None:
+            self.obj = Profile
         else:
-            self.obj = User
-            self.user_uuid = user_uuid
-            try:
-                uuid.UUID(user_uuid)
-            except (ValueError, TypeError):
-                self.user_uuid = None
+            self.is_group = is_group
+            if self.is_group:
+                self.obj = Group
+                self.group_id = group_id
+            else:
+                self.obj = User
+                self.user_uuid = user_uuid
+                try:
+                    uuid.UUID(user_uuid)
+                except (ValueError, TypeError):
+                    self.user_uuid = None
 
     def train(self):
         for media in self.__media__:
@@ -50,11 +61,15 @@ class FromProfile(Engine):
 
             if self.is_group:
                 self.obj_df = self.obj.get_with_genres(
-                    m.content_type, group_id=self.group_id)
-            else:
+                    types=m.content_type, group_id=self.group_id)
+            elif self.user_uuid is not None:
                 # Get user
                 self.obj_df = self.obj.get_with_genres(
-                    m.content_type, user_uuid=self.user_uuid)
+                    types=m.content_type, user_uuid=self.user_uuid)
+            else:
+                # Profile
+                self.obj_df = self.obj.get_with_genres(
+                    types=m.content_type, profile_uuid=self.profile_uuid)
 
             # Check we have a result for this user uuid
             if self.obj_df is None:
@@ -84,8 +99,11 @@ class FromProfile(Engine):
                             m.get_meta(meta_cols, u),
                             ignore_index=True
                         )
-                else:
+                elif self.user_uuid is not None:
                     user_input = m.get_meta(meta_cols, user["user_id"])
+                else:
+                    user_input = Profile.get_meta(
+                        m, meta_cols, self.event_id)
 
                 if user_input.shape[0] == 0:
                     continue
@@ -107,11 +125,12 @@ class FromProfile(Engine):
 
                 # Do not recommend already recommended content
                 already_recommended_media = []
-                with db as session:
-                    result = session.execute('SELECT %s FROM "%s" WHERE %s = \'%s\' AND engine <> \'%s\'' % (
-                        m.id, m.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__))
-                    already_recommended_media = [
-                        dict(row)[m.id] for row in result]
+                if self.profile_uuid is None:
+                    with db as session:
+                        result = session.execute('SELECT %s FROM "%s" WHERE %s = \'%s\' AND engine <> \'%s\'' % (
+                            m.id, m.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__))
+                        already_recommended_media = [
+                            dict(row)[m.id] for row in result]
 
                 recommendationTable_df = recommendationTable_df[~recommendationTable_df.index.isin(
                     already_recommended_media)]
@@ -128,31 +147,50 @@ class FromProfile(Engine):
 
                 values = []
                 for id, score in recommendationTable_df.items():
-                    values.append(
-                        {
-                            self.obj.id: int(user[self.obj.id]),
-                            m.id: int(id),
-                            "score": float(score),
-                            "engine": self.__class__.__name__,
-                            "engine_priority": self.__engine_priority__,
-                            "content_type": str(m.content_type).upper(),
-                        }
-                    )
+                    if self.profile_uuid is None:
+                        values.append(
+                            {
+                                self.obj.id: int(user[self.obj.id]),
+                                m.id: int(id),
+                                "score": float(score),
+                                "engine": self.__class__.__name__,
+                                "engine_priority": self.__engine_priority__,
+                                "content_type": str(m.content_type).upper(),
+                            }
+                        )
+                    else:
+                        values.append(
+                            {
+                                self.obj.event_id: self.event_id,
+                                m.id: int(id),
+                                "score": float(score),
+                                "engine": self.__class__.__name__,
+                            }
+                        )
 
                 len_values += len(values)
 
                 with db as session:
-                    # Reset list of recommended `media`
-                    session.execute(
-                        text('DELETE FROM "%s" WHERE %s = \'%s\' AND engine = \'%s\' AND content_type = \'%s\'' % (m.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__, str(m.content_type).upper())))
+                    if self.profile_uuid is None:
+                        # Reset list of recommended `media`
+                        session.execute(
+                            text('DELETE FROM "%s" WHERE %s = \'%s\' AND engine = \'%s\' AND content_type = \'%s\'' % (m.tablename_recommended + self.obj.recommended_ext, self.obj.id, user[self.obj.id], self.__class__.__name__, str(m.content_type).upper())))
 
-                    if len(values) > 0:
-                        markers = ':%s, :%s, :score, :engine, :engine_priority, :content_type' % (
-                            self.obj.id, m.id)
-                        ins = 'INSERT INTO {tablename} VALUES ({markers})'
-                        ins = ins.format(
-                            tablename=m.tablename_recommended + self.obj.recommended_ext, markers=markers)
-                        session.execute(ins, values)
+                        if len(values) > 0:
+                            markers = ':%s, :%s, :score, :engine, :engine_priority, :content_type' % (
+                                self.obj.id, m.id)
+                            ins = 'INSERT INTO {tablename} VALUES ({markers})'
+                            ins = ins.format(
+                                tablename=m.tablename_recommended + self.obj.recommended_ext, markers=markers)
+                            session.execute(ins, values)
+                    else:
+                        if len(values) > 0:
+                            markers = ':%s, :%s, :score, :engine' % (
+                                self.obj.event_id, m.id)
+                            ins = 'INSERT INTO {tablename} VALUES ({markers})'
+                            ins = ins.format(
+                                tablename=self.obj.tablename_recommended, markers=markers)
+                            session.execute(ins, values)
 
             self.logger.info("%s recommendation from user profile performed in %s (%s lines)" % (
                 m.content_type, datetime.utcnow()-st_time, len_values))

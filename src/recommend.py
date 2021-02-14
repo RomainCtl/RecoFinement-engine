@@ -32,6 +32,20 @@ class RecommendUser(Engine):
         start_from_profile_engine(wait=True, user_uuid=self.user_uuid)
 
 
+class RecommendProfile(Engine):
+    def __init__(self, *args, profile_uuid, event_id, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.profile_uuid = str(profile_uuid)
+        self.event_id = event_id
+
+    def train(self):
+        start_from_similar_content_engine(
+            wait=True, profile_uuid=self.profile_uuid, event_id=self.event_id)
+        start_from_profile_engine(
+            wait=True, profile_uuid=self.profile_uuid, event_id=self.event_id)
+
+
 def start_popularity_engine(wait=True):
     p = Popularity()
     p.start()
@@ -83,6 +97,20 @@ def start_from_profile_engine_for_group(wait=True, group_id=None):
 
 def start_from_similar_content_engine_for_group(wait=True, group_id=None):
     fsc = FromSimilarContent(group_id=group_id, is_group=True)
+    fsc.start()
+    if wait:
+        fsc.join()
+
+
+def start_from_profile_engine_for_profile(profile_uuid, event_id, wait=True):
+    fup = FromProfile(profile_uuid=profile_uuid, event_id=event_id)
+    fup.start()
+    if wait:
+        fup.join()
+
+
+def start_from_similar_content_engine_for_profile(profile_uuid, event_id, wait=True):
+    fsc = FromSimilarContent(profile_uuid=profile_uuid, event_id=event_id)
     fsc.start()
     if wait:
         fsc.join()

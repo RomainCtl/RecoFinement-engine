@@ -10,6 +10,7 @@ RUN apt update && apt install -y --no-install-recommends \
     netcat \
     software-properties-common \
     gnupg gnupg-agent \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # install java
@@ -36,6 +37,9 @@ WORKDIR $APP_HOME
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
+# For the websockets
+RUN apt-get update && apt-get install -y netbase
+
 # install dependencies
 RUN python3 -m pip install --upgrade pip pipenv
 COPY ./Pipfile $APP_HOME/Pipfile
@@ -48,5 +52,5 @@ COPY . $APP_HOME
 # run entrypoint.sh
 ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
 
-# Upgrade DB and run app
+# Upgrade DB and run app --worker-class eventlet
 CMD bash -c "pipenv run gunicorn --access-logfile '-' --bind 0.0.0.0:4041 run:app"
