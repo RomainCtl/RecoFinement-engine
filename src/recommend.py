@@ -40,9 +40,9 @@ class RecommendProfile(Engine):
         self.event_id = event_id
 
     def train(self):
-        start_from_similar_content_engine(
+        start_from_similar_content_engine_for_profile(
             wait=True, profile_uuid=self.profile_uuid, event_id=self.event_id)
-        start_from_profile_engine(
+        start_from_profile_engine_for_profile(
             wait=True, profile_uuid=self.profile_uuid, event_id=self.event_id)
 
 

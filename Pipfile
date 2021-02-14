@@ -15,8 +15,7 @@ flask = "*"
 sklearn = "*"
 pyspark = "*"
 gunicorn = "*"
-flask-socketio = "*"
-eventlet = "*"
+flask-uuid = "*"
 
 [requires]
 python_version = "3.8"
