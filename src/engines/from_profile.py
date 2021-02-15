@@ -274,8 +274,8 @@ class FromProfile(Engine):
                 # launched only for one group or one user
                 # check if this user have new interaction (meta_...), if news => launch
                 df = pd.read_sql_query(
-                    'SELECT occured_by AS user_id FROM "meta_added_event" WHERE occured_at > %s AND occured_by = \'%s\'' % (last_launch_date, user_id) +
-                    'UNION SELECT occured_by AS user_id FROM "changed_event" WHERE model_name = \'meta_user_content\' AND occured_at > %s AND occured_by = \'%s\'' % (last_launch_date, user_id), con=db.engine)
+                    'SELECT occured_by AS user_id FROM "meta_added_event" WHERE occured_at > \'%s\' AND occured_by = \'%s\'' % (last_launch_date, user_id) +
+                    'UNION SELECT occured_by AS user_id FROM "changed_event" WHERE model_name = \'meta_user_content\' AND occured_at > \'%s\' AND occured_by = \'%s\'' % (last_launch_date, user_id), con=db.engine)
 
                 if df.shape[0] != 0:
                     necessary_for.append(media)
@@ -283,7 +283,7 @@ class FromProfile(Engine):
 
                 # if not, check if new media, if news => launch only for these medias (return list of new content_id)
                 df = pd.read_sql_query(
-                    'SELECT object_id as content_id FROM "%s_added_event" WHERE occured_at > %s' % (media.content_type, last_launch_date), con=db.engine)
+                    'SELECT object_id as content_id FROM "%s_added_event" WHERE occured_at > \'%s\'' % (media.content_type, last_launch_date), con=db.engine)
 
                 if df.shape[0] != 0:
                     necessary_for_media_id[str(
@@ -296,7 +296,7 @@ class FromProfile(Engine):
 
                 # if not, check if new media, if news => launch only for these medias (return list of new content_id)
                 df = pd.read_sql_query(
-                    'SELECT object_id as content_id FROM "%s_added_event" WHERE occured_at > %s' % (media.content_type, last_launch_date), con=db.engine)
+                    'SELECT object_id as content_id FROM "%s_added_event" WHERE occured_at > \'%s\'' % (media.content_type, last_launch_date), con=db.engine)
 
                 if df.shape[0] != 0:
                     necessary_for_media_id[str(
@@ -306,7 +306,7 @@ class FromProfile(Engine):
                 # is for all
                 # if new media, launch for all user
                 df = pd.read_sql_query(
-                    'SELECT object_id as content_id FROM "%s_added_event" WHERE occured_at > %s' % (media.content_type, last_launch_date), con=db.engine)
+                    'SELECT object_id as content_id FROM "%s_added_event" WHERE occured_at > \'%s\'' % (media.content_type, last_launch_date), con=db.engine)
 
                 if df.shape[0] != 0:
                     necessary_for_media_id[str(
@@ -316,7 +316,7 @@ class FromProfile(Engine):
 
                 # else, select user with interaction
                 df = pd.read_sql_query(
-                    'SELECT occured_by AS user_id FROM "meta_added_event" WHERE occured_at > %s' % last_launch_date +
+                    'SELECT occured_by AS user_id FROM "meta_added_event" WHERE occured_at > \'%s\'' % last_launch_date +
                     'UNION SELECT occured_by AS user_id FROM "changed_event" WHERE model_name = \'meta_user_content\' AND occured_at > %s' % last_launch_date, con=db.engine)
 
                 if df.shape[0] != 0:

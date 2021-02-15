@@ -106,8 +106,8 @@ class CollaborativeFiltering(Engine):
         last_launch_date = df.iloc[0]["last_launch_date"]
 
         df = pd.read_sql_query(
-            'SELECT COUNT(*) FROM "meta_added_event" WHERE occured_at > %s' % last_launch_date +
-            'UNION SELECT COUNT(*) FROM "changed_event" WHERE model_name = \'meta_user_content\' AND occured_at > %s' % last_launch_date, con=db.engine)
+            'SELECT COUNT(*) FROM "meta_added_event" WHERE occured_at > \'%s\'' % last_launch_date +
+            'UNION SELECT COUNT(*) FROM "changed_event" WHERE model_name = \'meta_user_content\' AND occured_at > \'%s\'' % last_launch_date, con=db.engine)
 
         if df.shape[0] != 50:
             # New change occured (at least 50, can be changed)
