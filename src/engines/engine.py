@@ -38,7 +38,7 @@ class Engine(Thread, metaclass=ABCMeta):
         content_type = str(content_type).upper()
         with db as session:
             res = session.execute('INSERT INTO "engine" VALUES (\'%s\', current_timestamp, \'%s\') ' % (self.__class__.__name__, content_type) +
-                                  'ON CONFLICT (engine) DO ' +
+                                  'ON CONFLICT ON CONSTRAINT engine_pkey DO ' +
                                   'UPDATE SET last_launch_date = current_timestamp WHERE "engine".engine = \'%s\' AND "engine".content_type = \'%s\'' % (self.__class__.__name__, content_type))
 
     @abstractmethod

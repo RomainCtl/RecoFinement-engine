@@ -248,7 +248,7 @@ class FromProfile(Engine):
 
     def check_if_necessary(self):
         if self.profile_uuid is not None:
-            return self.__media__
+            return self.__media__, [], []
 
         if self.user_uuid is not None:
             user_id = self.obj.get(user_uuid=self.user_uuid)[0]["user_id"]
