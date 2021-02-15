@@ -45,7 +45,8 @@ class FromSimilarContent(Engine):
                     self.user_uuid = None
 
     def train(self):
-        for media in self.__media__:
+        necessary_for, necessary_for_media_id, necessary_for_user_id = self.check_if_necessary()
+        for media in necessary_for:
             st_time = datetime.utcnow()
 
             m = media(logger=self.logger)
@@ -54,7 +55,8 @@ class FromSimilarContent(Engine):
                 self.obj_df = self.obj.get(group_id=self.group_id)
             elif self.user_uuid is not None:
                 # Get user
-                self.obj_df = self.obj.get(user_uuid=self.user_uuid)
+                self.obj_df = self.obj.get(
+                    user_uuid=self.user_uuid, user_id_list=necessary_for_user_id[str(m.content_type)])
             else:
                 # Profile
                 self.obj_df = self.obj.get(profile_uuid=self.profile_uuid)
@@ -72,11 +74,13 @@ class FromSimilarContent(Engine):
                     self.media_df = pd.DataFrame(columns=meta_cols)
                     for u in user['user_id'].split(","):
                         self.media_df = self.media_df.append(
-                            m.get_meta(meta_cols, u),
+                            m.get_meta(
+                                meta_cols, u, list_of_content_id=necessary_for_media_id[str(m.content_type)]),
                             ignore_index=True
                         )
                 elif self.user_uuid is not None:
-                    self.media_df = m.get_meta(meta_cols, user["user_id"])
+                    self.media_df = m.get_meta(
+                        meta_cols, user["user_id"], list_of_content_id=necessary_for_media_id[str(m.content_type)])
                 else:
                     self.media_df = Profile.get_meta(
                         m, meta_cols, self.event_id)
@@ -183,3 +187,83 @@ class FromSimilarContent(Engine):
 
             self.logger.info("%s recommendation from similar content in %s (%s lines)" % (
                 m.content_type, datetime.utcnow()-st_time, len_values))
+
+    def check_if_necessary(self):
+        if self.profile_uuid is not None:
+            return self.__media__
+
+        if self.user_uuid is not None:
+            user_id = self.obj.get(user_uuid=self.user_uuid)[0]["user_id"]
+
+        necessary_for = []
+        necessary_for_media_id = {}
+        necessary_for_user_id = {}
+        for media in self.__media__:
+            df = pd.read_sql_query(
+                'SELECT last_launch_date FROM "engine" WHERE engine = \'%s\' AND content_type = \'%s\'' % (self.__class__.__name__, str(media.content_type).upper()), con=db.engine)
+
+            if df.shape[0] == 0:
+                # means that this engine has never been launched.
+                necessary_for.append(media)
+                continue
+
+            last_launch_date = df.iloc[0]["last_launch_date"]
+
+            necessary_for_media_id[str(media.content_type)] = []
+            necessary_for_user_id[str(media.content_type)] = []
+
+            if self.user_uuid is not None:
+                # launched only for one group or one user
+                # check if this user have new interaction (meta_...), if news => launch
+                df = pd.read_sql_query(
+                    'SELECT occured_by AS user_id FROM "meta_added_event" WHERE occured_at > %s AND occured_by = \'%s\'' % (last_launch_date, user_id) +
+                    'UNION SELECT occured_by AS user_id FROM "changed_event" WHERE model_name = \'meta_user_content\' AND occured_at > %s AND occured_by = \'%s\'' % (last_launch_date, user_id), con=db.engine)
+
+                if df.shape[0] != 0:
+                    necessary_for.append(media)
+                    continue
+
+                # if not, check if new media, if news => launch only for these medias (return list of new content_id)
+                df = pd.read_sql_query(
+                    'SELECT object_id as content_id FROM "%s_added_event" WHERE occured_at > %s' % (media.content_type, last_launch_date), con=db.engine)
+
+                if df.shape[0] != 0:
+                    necessary_for_media_id[str(
+                        media.content_type)] = df['content_id'].to_list()
+                    necessary_for.append(media)
+
+            elif self.group_id is not None:
+                # TODO check news interactions for group too
+                necessary_for.append(media)
+
+                # if not, check if new media, if news => launch only for these medias (return list of new content_id)
+                df = pd.read_sql_query(
+                    'SELECT object_id as content_id FROM "%s_added_event" WHERE occured_at > %s' % (media.content_type, last_launch_date), con=db.engine)
+
+                if df.shape[0] != 0:
+                    necessary_for_media_id[str(
+                        media.content_type)] = df['content_id'].to_list()
+                    necessary_for.append(media)
+            else:
+                # is for all
+                # if new media, launch for all user
+                df = pd.read_sql_query(
+                    'SELECT object_id as content_id FROM "%s_added_event" WHERE occured_at > %s' % (media.content_type, last_launch_date), con=db.engine)
+
+                if df.shape[0] != 0:
+                    necessary_for_media_id[str(
+                        media.content_type)] = df['content_id'].to_list()
+                    necessary_for.append(media)
+                    continue
+
+                # else, select user with interaction
+                df = pd.read_sql_query(
+                    'SELECT occured_by AS user_id FROM "meta_added_event" WHERE occured_at > %s' % last_launch_date +
+                    'UNION SELECT occured_by AS user_id FROM "changed_event" WHERE model_name = \'meta_user_content\' AND occured_at > %s' % last_launch_date, con=db.engine)
+
+                if df.shape[0] != 0:
+                    necessary_for_user_id[str(
+                        media.content_type)] = df['user_id'].to_list()
+                    necessary_for.append(media)
+
+        return necessary_for, necessary_for_media_id, necessary_for_user_id

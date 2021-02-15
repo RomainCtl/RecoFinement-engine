@@ -78,7 +78,7 @@ class Content:
 
         return df
 
-    def get_meta(self, cols=None, user_id=None, limit=None):
+    def get_meta(self, cols=None, user_id=None, limit=None, list_of_content_id=[]):
         """Get metadata as Dataframe
 
         Args:
@@ -95,6 +95,8 @@ class Content:
         user_filt = ''
         if user_id is not None:
             user_filt = "WHERE user_id = '%s'" % user_id
+        elif list_of_content_id != []:
+            filt = 'WHERE c.content_id IN (%s)' % ",".join(list_of_content_id)
 
         limit_filt = ''
         if limit is not None:
