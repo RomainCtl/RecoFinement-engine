@@ -97,9 +97,9 @@ class ContentSimilarities(Engine):
             last_launch_date = df.iloc[0]["last_launch_date"]
 
             df = pd.read_sql_query(
-                'SELECT COUNT(*) FROM "%s_added_event" WHERE occured_at > \'%s\'' % (media.content_type, last_launch_date), con=db.engine)
+                'SELECT COUNT(*) AS c FROM "%s_added_event" WHERE occured_at > \'%s\'' % (media.content_type, last_launch_date), con=db.engine)
 
-            if df.shape[0] != 0:
+            if df.shape[0]["c"] != 0:
                 # New change occured
                 return True
 

@@ -25,10 +25,12 @@ class FromSimilarContent(Engine):
             profile_uuid is not None and event_id is not None), "profile_uuid and event_id must be both None or both not None!"
 
         self.is_group = False
+        self.user_uuid = None
+        self.group_id = None
 
+        self.profile_uuid = profile_uuid
         if profile_uuid is not None:
             self.obj = Profile
-            self.profile_uuid = profile_uuid
             # raise exception if bad not a good uuid (v4)
             uuid.UUID(profile_uuid)
             self.event_id = event_id
