@@ -94,7 +94,7 @@ class LinkBetweenItems(Engine):
 
     def check_if_necessary(self):
         for media in self.__media__:
-            if m.content_type in [
+            if media.content_type in [
                 ContentType.APPLICATION,
                 ContentType.BOOK
             ]:

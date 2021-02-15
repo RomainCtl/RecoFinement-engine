@@ -249,15 +249,19 @@ class FromProfile(Engine):
         return user_profile
 
     def check_if_necessary(self):
+        necessary_for = []
+        necessary_for_media_id = {}
+        necessary_for_user_id = {}
+        for media in self.__media__:
+            necessary_for_media_id[str(media.content_type)] = []
+            necessary_for_user_id[str(media.content_type)] = []
+
         if self.profile_uuid is not None:
-            return self.__media__, [], []
+            return self.__media__, necessary_for_media_id, necessary_for_user_id
 
         if self.user_uuid is not None:
             user_id = self.obj.get(user_uuid=self.user_uuid)[0]["user_id"]
 
-        necessary_for = []
-        necessary_for_media_id = {}
-        necessary_for_user_id = {}
         for media in self.__media__:
             df = pd.read_sql_query(
                 'SELECT last_launch_date FROM "engine" WHERE engine = \'%s\' AND content_type = \'%s\'' % (self.__class__.__name__, str(media.content_type).upper()), con=db.engine)
@@ -268,9 +272,6 @@ class FromProfile(Engine):
                 continue
 
             last_launch_date = df.iloc[0]["last_launch_date"]
-
-            necessary_for_media_id[str(media.content_type)] = []
-            necessary_for_user_id[str(media.content_type)] = []
 
             if self.user_uuid is not None:
                 # launched only for one group or one user
