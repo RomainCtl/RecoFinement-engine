@@ -45,6 +45,5 @@ class Engine(Thread, metaclass=ABCMeta):
     def train(self):
         pass
 
-    @abstractmethod
     def check_if_necessary(self):
-        pass
+        raise Exception("check_if_necessary method should be implemented")
