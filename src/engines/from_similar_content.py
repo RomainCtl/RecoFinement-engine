@@ -21,9 +21,6 @@ class FromSimilarContent(Engine):
     def __init__(self, *args, user_uuid=None, group_id=None, is_group=False, profile_uuid=None, event_id=None, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.profile_uuid = profile_uuid
-        uuid.UUID(profile_uuid)  # raise exception if bad not a good uuid (v4)
-        self.event_id = event_id
         assert (profile_uuid is None and event_id is None) or (
             profile_uuid is not None and event_id is not None), "profile_uuid and event_id must be both None or both not None!"
 
@@ -31,6 +28,10 @@ class FromSimilarContent(Engine):
 
         if profile_uuid is not None:
             self.obj = Profile
+            self.profile_uuid = profile_uuid
+            # raise exception if bad not a good uuid (v4)
+            uuid.UUID(profile_uuid)
+            self.event_id = event_id
         else:
             self.is_group = is_group
             if self.is_group:
