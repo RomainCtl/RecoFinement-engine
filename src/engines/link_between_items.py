@@ -106,7 +106,7 @@ class LinkBetweenItems(Engine):
             df = pd.read_sql_query(
                 'SELECT COUNT(*) AS c FROM "%s_added_event" WHERE occured_at > \'%s\'' % (media.content_type, last_launch_date), con=db.engine)
 
-            if df.shape[0]["c"] != 0:
+            if df.iloc[0]["c"] != 0:
                 # New change occured
                 return True
 

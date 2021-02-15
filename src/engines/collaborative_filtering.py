@@ -86,7 +86,7 @@ class CollaborativeFiltering(Engine):
 
                     if len(values) > 0:
                         markers = ':user_id, :%s, :score, :engine, :engine_priority' % m.id
-                        ins = 'INSERT INTO {tablename} VALUES ({markers})'
+                        ins = 'INSERT INTO {tablename} VALUES ({markers}) ON CONFLICT ON CONSTRAINT recommended_content_pkey DO NOTHING'
                         ins = ins.format(
                             tablename=m.tablename_recommended, markers=markers)
                         session.execute(ins, values)
