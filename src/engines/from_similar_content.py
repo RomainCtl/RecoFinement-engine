@@ -55,13 +55,13 @@ class FromSimilarContent(Engine):
 
             if self.is_group:
                 self.obj_df = self.obj.get(group_id=self.group_id)
-            elif self.user_uuid is not None:
+            elif self.profile_uuid is not None:
+                # Profile
+                self.obj_df = self.obj.get(profile_uuid=self.profile_uuid)
+            else:
                 # Get user
                 self.obj_df = self.obj.get(
                     user_uuid=self.user_uuid, user_id_list=necessary_for_user_id[str(m.content_type)])
-            else:
-                # Profile
-                self.obj_df = self.obj.get(profile_uuid=self.profile_uuid)
 
             # Check we have a result for this user uuid
             if self.obj_df.shape[0] == 0:
@@ -80,12 +80,12 @@ class FromSimilarContent(Engine):
                                 meta_cols, u, list_of_content_id=necessary_for_media_id[str(m.content_type)]),
                             ignore_index=True
                         )
-                elif self.user_uuid is not None:
-                    self.media_df = m.get_meta(
-                        meta_cols, user["user_id"], list_of_content_id=necessary_for_media_id[str(m.content_type)])
-                else:
+                elif self.profile_uuid is not None:
                     self.media_df = Profile.get_meta(
                         m, meta_cols, self.event_id)
+                else:
+                    self.media_df = m.get_meta(
+                        meta_cols, user["user_id"], list_of_content_id=necessary_for_media_id[str(m.content_type)])
 
                 # Do not taking bad content that user do not like
                 self.media_df = self.media_df[(self.media_df["rating"] >= 3) | (

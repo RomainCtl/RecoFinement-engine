@@ -66,14 +66,14 @@ class FromProfile(Engine):
             if self.is_group:
                 self.obj_df = self.obj.get_with_genres(
                     types=m.content_type, group_id=self.group_id)
-            elif self.user_uuid is not None:
-                # Get user
-                self.obj_df = self.obj.get_with_genres(
-                    types=m.content_type, user_uuid=self.user_uuid, user_id_list=necessary_for_user_id[str(m.content_type)])
-            else:
+            elif self.profile_uuid is not None:
                 # Profile
                 self.obj_df = self.obj.get_with_genres(
                     types=m.content_type, profile_uuid=self.profile_uuid)
+            else:
+                # Get user
+                self.obj_df = self.obj.get_with_genres(
+                    types=m.content_type, user_uuid=self.user_uuid, user_id_list=necessary_for_user_id[str(m.content_type)])
 
             # Check we have a result for this user uuid
             if self.obj_df is None:
@@ -104,12 +104,12 @@ class FromProfile(Engine):
                                 meta_cols, u, list_of_content_id=necessary_for_media_id[str(m.content_type)]),
                             ignore_index=True
                         )
-                elif self.user_uuid is not None:
-                    user_input = m.get_meta(
-                        meta_cols, user["user_id"], list_of_content_id=necessary_for_media_id[str(m.content_type)])
-                else:
+                elif self.profile_uuid is not None:
                     user_input = Profile.get_meta(
                         m, meta_cols, self.event_id)
+                else:
+                    user_input = m.get_meta(
+                        meta_cols, user["user_id"], list_of_content_id=necessary_for_media_id[str(m.content_type)])
 
                 if user_input.shape[0] == 0:
                     continue
