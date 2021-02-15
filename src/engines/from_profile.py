@@ -30,8 +30,7 @@ class FromProfile(Engine):
             profile_uuid is not None and event_id is not None), "profile_uuid and event_id must be both None or both not None!"
 
         self.is_group = False
-        self.user_uuid = None
-        self.group_id = None
+        self.user_uuid = user_uuid
 
         self.profile_uuid = profile_uuid
         if profile_uuid is not None:
@@ -39,6 +38,7 @@ class FromProfile(Engine):
             # raise exception if bad not a good uuid (v4)
             uuid.UUID(profile_uuid)
             self.event_id = event_id
+            self.user_uuid = None
         else:
             self.is_group = is_group
             if self.is_group:
