@@ -94,6 +94,12 @@ class LinkBetweenItems(Engine):
 
     def check_if_necessary(self):
         for media in self.__media__:
+            if m.content_type in [
+                ContentType.APPLICATION,
+                ContentType.BOOK
+            ]:
+                continue
+
             df = pd.read_sql_query(
                 'SELECT last_launch_date FROM "engine" WHERE engine = \'%s\' AND content_type = \'%s\'' % (self.__class__.__name__, str(media.content_type).upper()), con=db.engine)
 
