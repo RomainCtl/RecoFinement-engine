@@ -22,7 +22,7 @@ class Game(Content):
 
     def calc_popularity_score(self, df):
         # NOTE we do not have any rating for game (cold start), so we use 'recommendations' field instead of 'popularity_score' that is computed by 'reco_engine' service
-        df['popularity_score'] = df['recommendations']
+        df = df.assign(popularity_score=df['recommendations'])
 
         return df
 

@@ -44,6 +44,12 @@ def create_app():
         start_similarities_engine(wait=False)
         return {"started": True}, 202
 
+    @app.route("/link_between_items/train", methods=["PUT"])
+    @token_auth
+    def link_between_items():
+        start_similarities_between_items_engine(wait=False)
+        return {"started": True}, 202
+
     @app.route("/collaborative_filtering/train", methods=["PUT"])
     @token_auth
     def collaborative_filtering_train():

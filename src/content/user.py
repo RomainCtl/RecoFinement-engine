@@ -21,7 +21,7 @@ class User:
         return user_df
 
     @classmethod
-    def get(cls, user_uuid=None):
+    def get(cls, user_uuid=None, user_id_list=[]):
         """Get all users
 
         NOTE we recover only the real users, not those recovered via datasets.
@@ -32,6 +32,8 @@ class User:
         usr = ''
         if user_uuid is not None:
             usr = "AND uuid = '%s'" % user_uuid
+        elif user_id_list != []:
+            usr = "AND u.user_id IN (%s)" % (', '.join(user_id_list))
 
         user_df = pd.read_sql_query(
             'SELECT user_id FROM "user" WHERE password_hash <> \'no_pwd\' %s' % usr, con=db.engine)
@@ -41,7 +43,7 @@ class User:
         return user_df
 
     @classmethod
-    def get_with_genres(cls, types=[], liked_weight=2, user_uuid=None):
+    def get_with_genres(cls, types=[], liked_weight=2, user_uuid=None, user_id_list=[]):
         """Get users with liked genre
 
         Args:
@@ -65,6 +67,8 @@ class User:
         usr = ''
         if user_uuid is not None:
             usr = "AND u.uuid = '%s'" % user_uuid
+        elif user_id_list != []:
+            usr = "AND u.user_id IN (%s)" % (', '.join(user_id_list))
 
         user_df = pd.read_sql_query(
             'SELECT u.user_id, g.content_type || g.name AS genres FROM "user" AS u LEFT OUTER JOIN "liked_genres" AS lg ON u.user_id = lg.user_id LEFT OUTER JOIN "genre" AS g ON g.genre_id = lg.genre_id %s WHERE password_hash <> \'no_pwd\' %s' % (filt, usr), con=db.engine)

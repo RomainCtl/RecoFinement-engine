@@ -78,7 +78,7 @@ class Content:
 
         return df
 
-    def get_meta(self, cols=None, user_id=None, limit=None):
+    def get_meta(self, cols=None, user_id=None, limit=None, list_of_content_id=[]):
         """Get metadata as Dataframe
 
         Args:
@@ -95,6 +95,8 @@ class Content:
         user_filt = ''
         if user_id is not None:
             user_filt = "WHERE user_id = '%s'" % user_id
+        elif list_of_content_id != []:
+            filt = 'WHERE c.content_id IN (%s)' % ",".join(list_of_content_id)
 
         limit_filt = ''
         if limit is not None:
@@ -211,7 +213,7 @@ class Content:
             filt = "AND s.content_type0 = s.content_type1"
 
         self.df = pd.read_sql_query(
-            'SELECT s.content_id0 AS content_id, s.content_id1 AS similar_content_id FROM %s AS s INNER JOIN "%s" AS c ON c.content_id = s.content_id1 WHERE s.content_id0 = \'%s\' %s' % (self.tablename_similars, self.tablename, content_id, filt), con=db.engine)
+            'SELECT s.content_id0 AS content_id, s.content_id1 AS similar_content_id, s.similarity FROM %s AS s INNER JOIN "%s" AS c ON c.content_id = s.content_id1 WHERE s.content_id0 = \'%s\' %s' % (self.tablename_similars, self.tablename, content_id, filt), con=db.engine)
 
         self.reduce_memory()
 

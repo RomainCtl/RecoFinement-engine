@@ -26,16 +26,19 @@ class FromProfile(Engine):
         """
         super().__init__(*args, **kwargs)
 
-        self.profile_uuid = profile_uuid
-        uuid.UUID(profile_uuid)  # raise exception if bad not a good uuid (v4)
-        self.event_id = event_id
         assert (profile_uuid is None and event_id is None) or (
             profile_uuid is not None and event_id is not None), "profile_uuid and event_id must be both None or both not None!"
 
         self.is_group = False
+        self.user_uuid = user_uuid
 
+        self.profile_uuid = profile_uuid
         if profile_uuid is not None:
             self.obj = Profile
+            # raise exception if bad not a good uuid (v4)
+            uuid.UUID(profile_uuid)
+            self.event_id = event_id
+            self.user_uuid = None
         else:
             self.is_group = is_group
             if self.is_group:
@@ -50,7 +53,8 @@ class FromProfile(Engine):
                     self.user_uuid = None
 
     def train(self):
-        for media in self.__media__:
+        necessary_for, necessary_for_media_id, necessary_for_user_id = self.check_if_necessary()
+        for media in necessary_for:
             m = media(logger=self.logger)
             if m.content_type in [
                 ContentType.APPLICATION,  # 1 seul genre par app ...
@@ -62,14 +66,14 @@ class FromProfile(Engine):
             if self.is_group:
                 self.obj_df = self.obj.get_with_genres(
                     types=m.content_type, group_id=self.group_id)
-            elif self.user_uuid is not None:
-                # Get user
-                self.obj_df = self.obj.get_with_genres(
-                    types=m.content_type, user_uuid=self.user_uuid)
-            else:
+            elif self.profile_uuid is not None:
                 # Profile
                 self.obj_df = self.obj.get_with_genres(
                     types=m.content_type, profile_uuid=self.profile_uuid)
+            else:
+                # Get user
+                self.obj_df = self.obj.get_with_genres(
+                    types=m.content_type, user_uuid=self.user_uuid, user_id_list=necessary_for_user_id[str(m.content_type)])
 
             # Check we have a result for this user uuid
             if self.obj_df is None:
@@ -96,14 +100,16 @@ class FromProfile(Engine):
                     user_input = pd.DataFrame(columns=meta_cols)
                     for u in user['user_id']:
                         user_input = user_input.append(
-                            m.get_meta(meta_cols, u),
+                            m.get_meta(
+                                meta_cols, u, list_of_content_id=necessary_for_media_id[str(m.content_type)]),
                             ignore_index=True
                         )
-                elif self.user_uuid is not None:
-                    user_input = m.get_meta(meta_cols, user["user_id"])
-                else:
+                elif self.profile_uuid is not None:
                     user_input = Profile.get_meta(
                         m, meta_cols, self.event_id)
+                else:
+                    user_input = m.get_meta(
+                        meta_cols, user["user_id"], list_of_content_id=necessary_for_media_id[str(m.content_type)])
 
                 if user_input.shape[0] == 0:
                     continue
@@ -179,7 +185,7 @@ class FromProfile(Engine):
                         if len(values) > 0:
                             markers = ':%s, :%s, :score, :engine, :engine_priority, :content_type' % (
                                 self.obj.id, m.id)
-                            ins = 'INSERT INTO {tablename} VALUES ({markers})'
+                            ins = 'INSERT INTO {tablename} VALUES ({markers}) ON CONFLICT ON CONSTRAINT recommended_content_pkey DO NOTHING'
                             ins = ins.format(
                                 tablename=m.tablename_recommended + self.obj.recommended_ext, markers=markers)
                             session.execute(ins, values)
@@ -241,3 +247,84 @@ class FromProfile(Engine):
 
         # Now, we have the weights for every of the user's preferences.
         return user_profile
+
+    def check_if_necessary(self):
+        necessary_for = []
+        necessary_for_media_id = {}
+        necessary_for_user_id = {}
+        for media in self.__media__:
+            necessary_for_media_id[str(media.content_type)] = []
+            necessary_for_user_id[str(media.content_type)] = []
+
+        if self.profile_uuid is not None:
+            return self.__media__, necessary_for_media_id, necessary_for_user_id
+
+        if self.user_uuid is not None:
+            user_id = self.obj.get(user_uuid=self.user_uuid).iloc[0]["user_id"]
+
+        for media in self.__media__:
+            df = pd.read_sql_query(
+                'SELECT last_launch_date FROM "engine" WHERE engine = \'%s\' AND content_type = \'%s\'' % (self.__class__.__name__, str(media.content_type).upper()), con=db.engine)
+
+            if df.shape[0] == 0:
+                # means that this engine has never been launched.
+                necessary_for.append(media)
+                continue
+
+            last_launch_date = df.iloc[0]["last_launch_date"]
+
+            if self.user_uuid is not None:
+                # launched only for one group or one user
+                # check if this user have new interaction (meta_...), if news => launch
+                df = pd.read_sql_query(
+                    'SELECT occured_by AS user_id FROM "meta_added_event" WHERE occured_at > \'%s\' AND occured_by = \'%s\'' % (last_launch_date, user_id) +
+                    'UNION SELECT occured_by AS user_id FROM "changed_event" WHERE model_name = \'meta_user_content\' AND occured_at > \'%s\' AND occured_by = \'%s\'' % (last_launch_date, user_id), con=db.engine)
+
+                if df.shape[0] != 0:
+                    necessary_for.append(media)
+                    continue
+
+                # if not, check if new media, if news => launch only for these medias (return list of new content_id)
+                df = pd.read_sql_query(
+                    'SELECT object_id as content_id FROM "%s_added_event" WHERE occured_at > \'%s\'' % (media.content_type, last_launch_date), con=db.engine)
+
+                if df.shape[0] != 0:
+                    necessary_for_media_id[str(
+                        media.content_type)] = df['content_id'].to_list()
+                    necessary_for.append(media)
+
+            elif self.group_id is not None:
+                # TODO check news interactions for group too
+                necessary_for.append(media)
+
+                # if not, check if new media, if news => launch only for these medias (return list of new content_id)
+                df = pd.read_sql_query(
+                    'SELECT object_id as content_id FROM "%s_added_event" WHERE occured_at > \'%s\'' % (media.content_type, last_launch_date), con=db.engine)
+
+                if df.shape[0] != 0:
+                    necessary_for_media_id[str(
+                        media.content_type)] = df['content_id'].to_list()
+                    necessary_for.append(media)
+            else:
+                # is for all
+                # if new media, launch for all user
+                df = pd.read_sql_query(
+                    'SELECT object_id as content_id FROM "%s_added_event" WHERE occured_at > \'%s\'' % (media.content_type, last_launch_date), con=db.engine)
+
+                if df.shape[0] != 0:
+                    necessary_for_media_id[str(
+                        media.content_type)] = df['content_id'].to_list()
+                    necessary_for.append(media)
+                    continue
+
+                # else, select user with interaction
+                df = pd.read_sql_query(
+                    'SELECT occured_by AS user_id FROM "meta_added_event" WHERE occured_at > \'%s\'' % last_launch_date +
+                    'UNION SELECT occured_by AS user_id FROM "changed_event" WHERE model_name = \'meta_user_content\' AND occured_at > %s' % last_launch_date, con=db.engine)
+
+                if df.shape[0] != 0:
+                    necessary_for_user_id[str(
+                        media.content_type)] = df['user_id'].to_list()
+                    necessary_for.append(media)
+
+        return necessary_for, necessary_for_media_id, necessary_for_user_id

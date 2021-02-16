@@ -1,3 +1,25 @@
 # [minute (0-59)] [hour (0-23)] [day of month (1-31)] [month (1-12 or jan,feb,mar,...)] [day of week (0-6 Sunday=0 OR sun,mon,tue,...)]
-# Request is sent each 6 hours
-0 */6 * * * echo "Send request to reload recommendations:" && curl -s -w "\t%{http_code}\n" -X PUT -H "X-API-TOKEN: $API_TOKEN" http://engine:4041/recommend/ > /proc/1/fd/1 2>/proc/1/fd/2
+
+# Launch Popularity one time a day at 2h
+0 2 * * * echo "Send request to reload popularity:" && curl -s -w "\t%{http_code}\n" -X PUT -H "X-API-TOKEN: $API_TOKEN" http://engine:4041/popularity/train > /proc/1/fd/1 2>/proc/1/fd/2
+
+# Launch Content similarities one time a day at 3h
+0 3 * * * echo "Send request to reload content similarities:" && curl -s -w "\t%{http_code}\n" -X PUT -H "X-API-TOKEN: $API_TOKEN" http://engine:4041/content_similarities/train > /proc/1/fd/1 2>/proc/1/fd/2
+
+# Launch Link between items one time a day at 4h
+0 4 * * * echo "Send request to reload link between items:" && curl -s -w "\t%{http_code}\n" -X PUT -H "X-API-TOKEN: $API_TOKEN" http://engine:4041/link_between_items/train > /proc/1/fd/1 2>/proc/1/fd/2
+
+# Launch Collaborative filtering every 6 hours
+0 */6 * * * echo "Send request to launch collaborative filtering engine:" && curl -s -w "\t%{http_code}\n" -X PUT -H "X-API-TOKEN: $API_TOKEN" http://engine:4041/collaborative_filtering/train > /proc/1/fd/1 2>/proc/1/fd/2
+
+# Launch From profile every 2 hours
+20 */2 * * * echo "Send request to launch from profile engine:" && curl -s -w "\t%{http_code}\n" -X PUT -H "X-API-TOKEN: $API_TOKEN" http://engine:4041/from_profile/train > /proc/1/fd/1 2>/proc/1/fd/2
+
+# Launch From similar content every 2 hours
+50 */2 * * * echo "Send request to launch from similar content engine:" && curl -s -w "\t%{http_code}\n" -X PUT -H "X-API-TOKEN: $API_TOKEN" http://engine:4041/from_similar_content/train > /proc/1/fd/1 2>/proc/1/fd/2
+
+# Launch From profile for group every 12 hours
+0 */12 * * * echo "Send request to launch from profile for group  engine:" && curl -s -w "\t%{http_code}\n" -X PUT -H "X-API-TOKEN: $API_TOKEN" http://engine:4041/from_profile/group/train > /proc/1/fd/1 2>/proc/1/fd/2
+
+# Launch From similar content for group every 12 hours
+59 */12 * * * echo "Send request to launch from similar content for group  engine:" && curl -s -w "\t%{http_code}\n" -X PUT -H "X-API-TOKEN: $API_TOKEN" http://engine:4041/from_similar_content/group/train > /proc/1/fd/1 2>/proc/1/fd/2
