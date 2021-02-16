@@ -174,7 +174,7 @@ class FromSimilarContent(Engine):
                         if len(values) > 0:
                             markers = ':%s, :%s, :score, :engine, :engine_priority' % (
                                 self.obj.id, m.id)
-                            ins = 'INSERT INTO {tablename} VALUES ({markers})'
+                            ins = 'INSERT INTO {tablename} VALUES ({markers}) ON CONFLICT ON CONSTRAINT recommended_content_pkey DO NOTHING'
                             ins = ins.format(
                                 tablename=m.tablename_recommended + self.obj.recommended_ext, markers=markers)
                             session.execute(ins, values)
@@ -182,7 +182,7 @@ class FromSimilarContent(Engine):
                         if len(values) > 0:
                             markers = ':%s, :%s, :score, :engine' % (
                                 self.obj.event_id, m.id)
-                            ins = 'INSERT INTO {tablename} VALUES ({markers})'
+                            ins = 'INSERT INTO {tablename} VALUES ({markers}) ON CONFLICT ON CONSTRAINT recommended_content_pkey DO NOTHING'
                             ins = ins.format(
                                 tablename=self.obj.tablename_recommended, markers=markers)
                             session.execute(ins, values)
@@ -202,7 +202,7 @@ class FromSimilarContent(Engine):
             return self.__media__, necessary_for_media_id, necessary_for_user_id
 
         if self.user_uuid is not None:
-            user_id = self.obj.get(user_uuid=self.user_uuid)[0]["user_id"]
+            user_id = self.obj.get(user_uuid=self.user_uuid).iloc[0]["user_id"]
 
         for media in self.__media__:
             df = pd.read_sql_query(
