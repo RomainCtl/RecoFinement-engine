@@ -185,8 +185,7 @@ class FromProfile(Engine):
                         if len(values) > 0:
                             markers = ':%s, :%s, :score, :engine, :engine_priority, :content_type' % (
                                 self.obj.id, m.id)
-                            ins = 'INSERT INTO {tablename} VALUES ({markers}) ON CONFLICT ON CONSTRAINT %s_pkey DO NOTHING' % m.tablename_recommended + \
-                                self.obj.recommended_ext
+                            ins = 'INSERT INTO {tablename} VALUES ({markers}) ON CONFLICT ON CONSTRAINT %s_pkey DO NOTHING' % (m.tablename_recommended + self.obj.recommended_ext)
                             ins = ins.format(
                                 tablename=m.tablename_recommended + self.obj.recommended_ext, markers=markers)
                             session.execute(ins, values)
